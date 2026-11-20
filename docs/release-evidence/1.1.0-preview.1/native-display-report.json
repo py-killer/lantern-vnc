@@ -1,0 +1,15 @@
+{
+  "appVersion" : "1.1.0-preview.1",
+  "backingScale" : 2,
+  "gpu" : "Apple M5",
+  "inputSource" : "generated frames and events in an owned offscreen window",
+  "macOS" : "Version 26.6 (Build 25G72)",
+  "manualHardwareMatrix" : "not run",
+  "nativeChecks" : 622,
+  "remoteSizes" : [
+    "1600x1200",
+    "5120x1440",
+    "5120x2880"
+  ],
+  "resizeStressIterations" : 40
+}

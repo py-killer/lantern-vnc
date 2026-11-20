@@ -1,0 +1,16 @@
+{
+  "globalInputEvents" : 0,
+  "gpu" : "Apple M5",
+  "macOS" : "Version 26.6 (Build 25G72)",
+  "networkConnections" : 0,
+  "preferenceIsolation" : "temporary UserDefaults suite",
+  "syntheticRemoteSize" : "5120x2880",
+  "uiChecks" : 3238,
+  "windowPresentation" : "owned, offscreen, non-key",
+  "windowSizes" : [
+    "860x540",
+    "1180x760",
+    "860x950",
+    "1600x560"
+  ]
+}

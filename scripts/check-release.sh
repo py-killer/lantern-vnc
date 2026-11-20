@@ -1,0 +1,29 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-or-later
+set -euo pipefail
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+TEST_DIR="$PROJECT_DIR/../work/release-checks"
+mode="${1:---full}"
+if [[ "$mode" != --full && "$mode" != --headless ]]; then
+  echo 'Usage: ./scripts/check-release.sh [--full|--headless]' >&2
+  exit 2
+fi
+mkdir -p "$TEST_DIR/module-cache"
+"$PROJECT_DIR/scripts/build-app.sh"
+xcrun swiftc -swift-version 5 -module-cache-path "$TEST_DIR/module-cache" \
+  "$PROJECT_DIR/App/DeviceStore.swift" "$PROJECT_DIR/tests/test_device_store.swift" \
+  -o "$TEST_DIR/test-devices"
+"$TEST_DIR/test-devices"
+if [[ "$mode" == --full ]]; then
+  "$PROJECT_DIR/tests/run-display-tests.sh"
+  "$PROJECT_DIR/tests/run-app-ui-tests.sh"
+else
+  xcrun swiftc -swift-version 5 -O -module-cache-path "$TEST_DIR/module-cache" \
+    "$PROJECT_DIR/App/DesktopViewport.swift" "$PROJECT_DIR/tests/test_viewport.swift" \
+    -o "$TEST_DIR/test-viewport"
+  "$TEST_DIR/test-viewport"
+  echo 'NOT RUN: native Metal/window tests. Headless checks do not approve a release.'
+fi
+TEST_SANITIZE=1 "$PROJECT_DIR/tests/run-tests.sh"
+codesign --verify --deep --strict "$PROJECT_DIR/build/Lantern VNC.app"
+echo 'Automated checks completed. Record manual display/hardware results in docs/RELEASE_CHECKLIST.md before a stable release.'

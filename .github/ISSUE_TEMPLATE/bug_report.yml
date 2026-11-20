@@ -1,0 +1,52 @@
+name: Report a bug
+description: Describe a reproducible Lantern VNC problem.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Issues are public. Do not include passwords, private server addresses, clipboard contents, or personal desktop information. For vulnerabilities, follow SECURITY.md instead."
+  - type: input
+    id: version
+    attributes:
+      label: Lantern version and macOS version
+      placeholder: "Lantern 1.1.0-preview1, macOS 15.7"
+    validations:
+      required: true
+  - type: input
+    id: server
+    attributes:
+      label: VNC server and version
+      description: "Server product/version only. Do not include its address or password."
+      placeholder: "TightVNC Server 2.x"
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the viewing mode and which edges or controls are affected.
+    validations:
+      required: true
+  - type: textarea
+    id: display
+    attributes:
+      label: Display setup, if relevant
+      description: "Remote resolution; Mac window/viewport size; Retina or external display; backing scale if known; Fit/zoom setting. Say whether moving between displays triggers the problem."
+      placeholder: "Remote 5120×2880; local window 1180×760 points; Retina 2×; 100%; bottom-right corner unreachable."
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Additional evidence
+      description: "Optional redacted screenshot or feedback notes. Prefer synthetic test content. Saving a feedback file does not submit it automatically."
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before posting
+      options:
+        - label: I removed passwords, private connection details, and personal information from this report and any attachments.
+          required: true

@@ -1,0 +1,21 @@
+name: Native client checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  arm64-macos:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build and test Apple Silicon client
+        run: ./scripts/check-release.sh --headless
+      - name: Record remaining release work
+        if: always()
+        run: echo 'Native GPU/window and real display transitions require the documented manual release matrix.' >> "$GITHUB_STEP_SUMMARY"

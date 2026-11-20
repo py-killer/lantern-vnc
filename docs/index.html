@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f6f7">
+  <meta name="description" content="Lantern VNC is a native macOS remote desktop viewer for Apple Silicon. Connect directly to your TightVNC server with Metal rendering, keyboard and mouse control, and optional text clipboard sharing.">
+  <title>Lantern VNC — Your other computer. Right here.</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+    <symbol id="icon-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 1v5m6-5v5M9 18v5m6-5v5M1 9h5m-5 6h5m12-6h5m-5 6h5"/><rect x="10" y="10" width="4" height="4" rx=".8"/></symbol>
+    <symbol id="icon-keyboard" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10"/></symbol>
+    <symbol id="icon-clipboard" viewBox="0 0 24 24"><path d="M8 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="8" y="2" width="8" height="6" rx="2"/><path d="M8 12h8m-8 4h5"/></symbol>
+    <symbol id="icon-connect" viewBox="0 0 24 24"><rect x="2" y="3" width="8" height="6" rx="1.5"/><rect x="14" y="15" width="8" height="6" rx="1.5"/><path d="M6 9v7a2 2 0 0 0 2 2h6M18 15V8a2 2 0 0 0-2-2h-6"/></symbol>
+    <symbol id="icon-fit" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/><rect x="7" y="7" width="10" height="10" rx="1.5"/></symbol>
+    <symbol id="icon-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  </svg>
+
+  <header class="site-header">
+    <nav class="navigation shell" aria-label="Main navigation">
+      <a class="brand" href="#" aria-label="Lantern VNC home">
+        <svg class="brand-mark" width="36" height="36" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="11" fill="currentColor"/><rect x="8" y="8" width="20" height="15" rx="3" fill="none" stroke="#fff" stroke-width="1.7"/><path d="M13 28h10m-5-5v5" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><circle cx="23" cy="13" r="2.5" fill="#86eadc"/></svg>
+        <span>Lantern<span class="brand-vnc">VNC</span></span>
+      </a>
+      <button class="menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="nav-links"><span></span><span></span></button>
+      <div class="nav-links" id="nav-links">
+        <a href="#features">The app</a>
+        <a href="#support">Free &amp; open</a>
+        <a href="#questions">Questions</a>
+        <a class="button button-small button-dark" href="downloads/Lantern-VNC-macOS.zip">Download for Mac</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero shell" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="early-badge">Early access</span><span>Native VNC for Mac</span></div>
+        <h1 id="hero-title">Your other<br> computer.<br> <span>Right here.</span></h1>
+        <p class="hero-description">A little window into another machine. A native Mac app that makes your TightVNC desktop feel close to home.</p>
+        <div class="hero-actions"><a class="button button-dark" href="downloads/Lantern-VNC-macOS.zip">Download for Mac <span class="button-price">Free · Apple Silicon</span></a><a class="text-link" href="#features">Take a closer look</a></div>
+        <p class="compatibility">Apple Silicon <span>·</span> macOS 13 or later <span>·</span> No login</p>
+      </div>
+      <figure class="hero-product">
+        <div class="product-halo" aria-hidden="true"></div>
+        <div class="app-frame"><img src="assets/app-preview.png" width="1400" height="950" alt="Earlier Lantern VNC 1.0 interface; the 1.1 preview adds zoom and Hand navigation" fetchpriority="high"></div>
+        <figcaption><span class="native-label"><svg class="icon" aria-hidden="true"><use href="#icon-chip"/></svg>Built for Apple Silicon.</span><span>1.1 preview adds zoom + Hand.</span></figcaption>
+      </figure>
+    </section>
+
+    <div class="intro-strip shell"><p>Keep the server you already have.</p><p>Bring a better window to it.</p><span>TIGHTVNC + YOUR MAC</span></div>
+
+    <section id="features" class="features-section shell" aria-labelledby="features-title">
+      <div class="section-heading"><p class="eyebrow">SMALL APP. PROPERLY NATIVE.</p><h2 id="features-title">Less between you<br> and your desktop.</h2><p>Connect directly. Get to work. Lantern brings the essentials together in a focused Mac interface.</p></div>
+      <div class="feature-grid">
+        <article class="feature-card performance-card">
+          <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#icon-chip"/></svg></div>
+          <div class="chip-art" aria-hidden="true"><div class="chip-core"><span>Apple</span><strong>Silicon</strong><small>NATIVE ARM64</small></div><span class="chip-pin pin-top"></span><span class="chip-pin pin-bottom"></span><span class="chip-pin pin-left"></span><span class="chip-pin pin-right"></span></div>
+          <h3>A Mac app, all the way down.</h3><p>Swift and AppKit up front. A compiled VNC engine underneath. Metal puts the remote desktop on your GPU, with native ARM64 decoding.</p><span class="feature-note">No browser window required.</span>
+        </article>
+        <article class="feature-card keyboard-card">
+          <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#icon-keyboard"/></svg></div>
+          <div class="keyboard-art" aria-hidden="true"><kbd>⌘</kbd><span>maps to</span><kbd class="control-key">ctrl</kbd></div>
+          <h3>Your familiar shortcuts.</h3><p>Use your keyboard, mouse, and trackpad to control the remote machine. Map Command to Control, send function keys, or send Ctrl–Alt–Del.</p>
+        </article>
+        <article class="feature-card small-card"><div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#icon-fit"/></svg></div><h3>The whole picture.<br> Or every pixel.</h3><p>Start in Auto (Readable), choose Fit or a zoom level, and use Hand or the scroll bars to explore a large desktop.</p></article>
+        <article class="feature-card small-card"><div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#icon-clipboard"/></svg></div><h3>A little less<br> retyping.</h3><p>Optional text clipboard sharing moves text between your Mac and your remote desktop.</p></article>
+        <article class="feature-card small-card"><div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#icon-eye"/></svg></div><h3>Just looking?<br> There’s a mode for that.</h3><p>Switch to View-only when you want to watch a remote desktop without sending keyboard or pointer input.</p></article>
+      </div>
+    </section>
+
+    <section class="connection-section" aria-labelledby="connection-title"><div class="shell connection-content"><div><p class="eyebrow">A DIRECT CONNECTION</p><h2 id="connection-title">Your Mac.<br> Your network.<br> Your machine.</h2><p>Lantern connects to the VNC server you run. Enter its address and port, add your password, and open a window onto your desktop.</p><p class="connection-detail">Designed for your trusted local network, or a network you reach through your own VPN or SSH tunnel.</p></div><div class="connection-diagram" aria-label="Your Mac connects directly over your network to your existing TightVNC server"><div class="diagram-node"><svg aria-hidden="true"><use href="#icon-monitor"/></svg><strong>Your Mac</strong><span>Lantern VNC</span></div><div class="diagram-line"><span>DIRECT VNC</span><i></i></div><div class="diagram-node server-node"><svg aria-hidden="true"><use href="#icon-connect"/></svg><strong>Your computer</strong><span>TightVNC server</span></div><p>No Lantern cloud relay. No remote account to create.</p></div></div></section>
+
+    <section id="support" class="pricing-section shell" aria-labelledby="support-title">
+      <div class="section-heading centered"><p class="eyebrow">A SMALL APP. AN OPEN DOOR.</p><h2 id="support-title">Free to use.<br> Yours to support.</h2><p>No account. No subscription. No expiry. Just a native window into your other computer.</p></div>
+      <div class="pricing-layout">
+        <article class="price-card"><div class="price-card-top"><span class="early-badge">Early access</span><svg class="icon" aria-hidden="true"><use href="#icon-monitor"/></svg></div><h3>Lantern VNC</h3><p class="price-subtitle">The native Mac viewer for your own VNC server.</p><div class="price"><span>Free.</span><small>Today and ongoing.</small></div><p class="billing-detail">Full access. No payment needed to keep using it.</p><a class="button button-dark button-full" href="downloads/Lantern-VNC-macOS.zip">Download for Mac</a><p class="checkout-note">Apple Silicon · macOS 13 or later</p><div class="price-features"><p><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>Native app with Metal rendering</p><p><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>Save up to 3 devices; one active session</p><p><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>Keyboard, pointer, and optional text clipboard</p><p><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>No login, expiry, or payment gate</p><p><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>Complete GPL source included</p></div><a class="source-link" href="downloads/Lantern-VNC-source.zip">Download the source code</a></article>
+        <div class="comparison support-copy"><p class="comparison-eyebrow">IF IT MAKES YOUR DAY EASIER</p><h3>A little thank-you.<br> Only if you want to.</h3><p class="support-description">Lantern is free to keep using. If you enjoy it, an optional tip is a simple way to support its development.</p><div class="tip-price"><strong>$2.99</strong><span>suggested tip</span></div><button type="button" class="button button-outline" data-support>Support Lantern</button><p class="support-note" data-support-note>Optional support opens soon. No payment is collected here.</p><div class="feedback-invitation"><svg class="icon" aria-hidden="true"><use href="#icon-keyboard"/></svg><div><h4>Your feedback helps, too.</h4><p>Found a rough edge? Have an idea? Help shape a better little Mac app.</p><button class="text-link text-button" type="button" data-feedback>Write some feedback</button></div></div></div>
+      </div>
+    </section>
+
+    <section class="fit-section shell" aria-labelledby="fit-title"><div><p class="eyebrow">THE RIGHT TOOL FOR YOUR SETUP</p><h2 id="fit-title">A viewer with<br> a clear purpose.</h2></div><div class="fit-copy"><p>Lantern is for people who already run a VNC server and want a native Mac window into it.</p><p>It provides remote display, keyboard and pointer control, and text clipboard sharing. It does not include a cloud relay, built-in transport encryption, file transfer, remote audio, or remote printing.</p><p class="fit-callout">For a computer across the internet, use your own VPN or SSH tunnel. Lantern does not set up that connection for you.</p></div></section>
+
+    <section id="questions" class="faq-section shell" aria-labelledby="questions-title"><div class="section-heading"><p class="eyebrow">GOOD QUESTIONS</p><h2 id="questions-title">Before you<br> open a window.</h2></div><div class="faq-list">
+      <details><summary>What do I need to use Lantern?<span aria-hidden="true"></span></summary><div class="faq-answer"><p>An Apple Silicon Mac running macOS 13 or later, and a reachable VNC server such as TightVNC. You’ll need the server’s address, port (usually 5900), and password if authentication is enabled. Lantern is a viewer; it does not install or configure the remote server.</p></div></details>
+      <details><summary>Can I connect to TightVNC?<span aria-hidden="true"></span></summary><div class="faq-answer"><p>Yes. Lantern uses the RFB/VNC protocol and supports classic VNC password authentication and common encodings, including Tight, ZRLE, and Raw. The remote computer must allow VNC connections from your Mac.</p></div></details>
+      <details><summary>Does Lantern encrypt my connection?<span aria-hidden="true"></span></summary><div class="faq-answer"><p>This early-access build does not provide transport encryption. Use it on a trusted local network, or route your connection through your own VPN or SSH tunnel. Do not expose an unencrypted VNC server directly to the internet.</p></div></details>
+      <details><summary>Is the app ready for everyday use?<span aria-hidden="true"></span></summary><div class="faq-answer"><p>Lantern 1.1.0-preview.1 is in early access. Its new zoom and panning controls have synthetic GPU and UI coverage; physical external-display transitions remain unverified. The current preview is locally signed, with Apple Developer signing and notarization still pending. macOS may require you to explicitly approve opening it. Compatibility and performance depend on your server, network, and display size; no specific benchmark is promised.</p></div></details>
+      <details><summary>Is Lantern really free?<span aria-hidden="true"></span></summary><div class="faq-answer"><p>Yes. Lantern is free to use and keep using. There is no login, subscription, expiry, or payment gate. Optional support is a thank-you, not a requirement or a way to unlock the app.</p></div></details>
+      <details><summary>How many computers can I connect to?<span aria-hidden="true"></span></summary><div class="faq-answer"><p>This first version can save up to three devices and connect to one active session at a time. Each saved device has its own connection address and port.</p></div></details>
+      <details><summary>How can I share feedback?<span aria-hidden="true"></span></summary><div class="faq-answer"><p>You can <a href="https://github.com/py-killer/lantern-vnc/issues/new" target="_blank" rel="noopener noreferrer">open an issue on GitHub</a>, or use the feedback form to prepare a text file you can share later. The file downloads locally and is never submitted automatically. The app’s feedback export can also collect basic diagnostic details. <button class="text-link text-button" type="button" data-feedback>Write feedback.</button></p></div></details>
+      <details><summary>Can I get the source code?<span aria-hidden="true"></span></summary><div class="faq-answer"><p>Yes. Lantern is distributed under GPL-2.0-or-later, with the complete corresponding source available alongside the app. You may use, study, modify, and redistribute it under that license. <a href="https://github.com/py-killer/lantern-vnc" target="_blank" rel="noopener noreferrer">Browse the project on GitHub</a> or <a href="downloads/Lantern-VNC-source.zip">download the source archive.</a></p></div></details>
+    </div></section>
+
+    <section class="closing-section shell"><svg class="closing-mark" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="11" fill="currentColor"/><rect x="8" y="8" width="20" height="15" rx="3" fill="none" stroke="#fff" stroke-width="1.7"/><path d="M13 28h10m-5-5v5" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><circle cx="23" cy="13" r="2.5" fill="#86eadc"/></svg><h2>A little closer<br> to your other desktop.</h2><a class="button button-dark" href="downloads/Lantern-VNC-macOS.zip">Download for Mac</a><p>Free to use. No account required.</p></section>
+  </main>
+
+  <footer class="site-footer shell"><div class="footer-top"><a class="brand" href="#">Lantern<span class="brand-vnc">VNC</span></a><div><a href="https://github.com/py-killer/lantern-vnc" target="_blank" rel="noopener noreferrer">GitHub</a><a href="downloads/Lantern-VNC-source.zip">Source archive</a><button class="text-button" type="button" data-feedback>Feedback</button><a href="#questions">Questions</a><span>Made for macOS.</span></div></div><p>Lantern VNC is an independent project and is not affiliated with Apple, TightVNC, or RealVNC. Product names belong to their respective owners.</p><p>Built with LibVNCClient and libjpeg-turbo. This software is based in part on the work of the Independent JPEG Group. GPL-2.0-or-later; third-party notices are included in the source archive.</p></footer>
+
+  <dialog id="support-dialog" class="checkout-dialog" aria-labelledby="support-dialog-title" aria-describedby="support-description"><button class="dialog-close" type="button" aria-label="Close dialog">×</button><span class="early-badge">Entirely optional</span><h2 id="support-dialog-title">Thanks for<br> the good thought.</h2><p id="support-description">Optional support is opening soon. No payment is collected on this page.</p><div class="dialog-price"><strong>$2.99</strong><span>suggested tip</span></div><p class="dialog-detail">Lantern keeps working whether you support it or not. No login, expiry, or payment gate.</p><div class="dialog-actions"><button type="button" class="button button-dark" data-close-dialog>Got it</button><button type="button" class="text-link text-button" data-feedback>Share feedback instead</button></div></dialog>
+  <dialog id="feedback-dialog" class="checkout-dialog feedback-dialog" aria-labelledby="feedback-dialog-title" aria-describedby="feedback-description"><button class="dialog-close" type="button" aria-label="Close dialog">×</button><span class="early-badge">Help shape Lantern</span><h2 id="feedback-dialog-title">A thought?<br> Make it count.</h2><p id="feedback-description">Open a GitHub issue, or save a feedback file to share later. This form saves locally; it does not send or upload your message.</p><a class="github-feedback-link text-link" href="https://github.com/py-killer/lantern-vnc/issues/new" target="_blank" rel="noopener noreferrer">Open a GitHub issue</a><form id="feedback-form"><label for="feedback-text">Your feedback</label><textarea id="feedback-text" name="feedback" required minlength="3" maxlength="12000" rows="5" placeholder="What worked well? What could be better?"></textarea><p class="dialog-detail">Please leave out passwords, private server details, and other sensitive information.</p><div class="dialog-actions"><button class="button button-dark" type="submit">Save feedback file</button><button type="button" class="text-link text-button" data-close-dialog>Cancel</button></div><p class="feedback-status" id="feedback-status" role="status" aria-live="polite"></p></form></dialog>
+</body>
+</html>

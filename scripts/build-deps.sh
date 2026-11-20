@@ -42,6 +42,7 @@ cp "$PROJECT_DIR/vendor/libjpeg-turbo/src/jerror.h" "$BUILD_DIR/jpeg/include/"
 cp "$BUILD_DIR/jpeg/jconfig.h" "$BUILD_DIR/jpeg/include/"
 
 "$cmake_bin" -S "$PROJECT_DIR/vendor/libvncserver" -B "$BUILD_DIR/vnc" \
+  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_OSX_ARCHITECTURES="$build_arch" \
   -DCMAKE_OSX_DEPLOYMENT_TARGET="$macos_target" \

@@ -10,6 +10,7 @@ Candidate status: **preview, not a stable release**. Recorded on 20 November 202
 | Native Metal and input harness | 622 checks passed | Actual GPU output and local input routing in an owned offscreen window on Apple M5, macOS 26.6 (25G72), backing scale 2. |
 | App controller UI | 3,238 assertions passed | Four real-controller window layouts, toolbar/scroller clipping, sidebar restoration, zoom actions, Hand/Esc updates and preference isolation. No network or global input. |
 | VNC protocol regression with AddressSanitizer | 45 sessions passed | Tight/Raw/CopyRect decoding, resize, independent VNC password challenge, keyboard/pointer/clipboard messages, view-only suppression, failure/cancel/reconnect cleanup. |
+| CMake 4 build compatibility | Passed with CMake 4.4.5 | LibVNC policy compatibility override configures, builds, and links an arm64 client with macOS 13 minimum; existing tested app libraries were preserved. |
 | Saved device store | Passed | Three-device capacity, migration, rename/deduplication, persistence and credential-free saved schema. |
 
 The native display harness used generated frames, not a personal desktop. It verified 5120 × 2880 frames at 860 × 540 and 1180 × 760 window sizes, all four pan corners and pointer coordinates, native horizontal/vertical scroller actions, the final row/column/pixel, one-pixel stripe rendering, pinch anchoring, Hand navigation in view-only mode, normal remote scrolling, and 40 non-square resize cases. Other native frames included 1600 × 1200 and 5120 × 1440.

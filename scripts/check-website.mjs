@@ -12,7 +12,7 @@ for(const [path,extra] of [['/api/events',{type:'visit',path:'/lantern-vnc/',ref
  for(let i=0;i<2;i++){const r=await request(path,options);assert.equal(r.status,200,`${path}: ${r.status} ${await r.clone().text()}`);const result=await r.json();assert.equal(result.ok,true);if(path==='/api/feedback')assert.equal(result.id,body.eventId);}
  console.log('PASS',path,'QA acknowledgment and safe retry');
 }
-for(const path of ['/api/stats','/api/inbox'])for(const headers of [{},{'oai-authenticated-user-email':'fts227@gmail.com'}]){
+for(const path of ['/api/stats','/api/inbox'])for(const headers of [{},{'oai-authenticated-user-email':'forged-owner@example.test'}]){
  const r=await request(path,{headers});assert.equal(r.status,403,`${path} must reject anonymous/forged identity`);console.log('PASS private endpoint',path);
 }
 const admin=await request('/admin');assert.equal(admin.status,302);assert.ok(admin.headers.get('location').includes('/signin-with-chatgpt'));

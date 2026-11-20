@@ -12,7 +12,7 @@ launch thread.
 
 | Topic | Wording supported by the current project |
 | --- | --- |
-| Release | [1.1.0-preview.1](https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.1), a preview, not a stable release. |
+| Release | [1.1.0-preview.1](https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.2), a preview, not a stable release. |
 | Platform | Apple Silicon, arm64, macOS 13+. No Intel build. |
 | App | Native AppKit interface and Metal renderer; connects directly to an existing VNC server. Built around TightVNC use. |
 | Access | Free current version, no app account, subscription, expiry, or feature unlock. Optional support does not affect access. |
@@ -31,9 +31,9 @@ Test assertion/session counts are coverage evidence, not benchmarks or
 independent certification. Avoid claims about competitors' current pricing
 or licenses unless they are checked separately.
 
-Website: <https://py-killer.github.io/lantern-vnc/>  
-Release/downloads: <https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.1>  
-Source/issues: <https://github.com/py-killer/lantern-vnc>  
+Website: <https://py-killer.github.io/lantern-vnc/>
+Release/downloads: <https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.2>
+Source/issues: <https://github.com/py-killer/lantern-vnc>
 Wiki: <https://py-killer.github.io/lantern-vnc/wiki/>
 
 ## Show HN
@@ -98,7 +98,7 @@ do not present this draft as ready for an unrestricted main-feed post.
 > LAN or a separate secure tunnel. Physical display-transition testing remains
 > open. No Intel support, audio, or file transfer.
 >
-> [Official download and source](https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.1)
+> [Official download and source](https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.2)
 > · [Wiki](https://py-killer.github.io/lantern-vnc/wiki/)
 >
 > Feedback about large desktops, MacBook usability, and input mapping would
@@ -182,3 +182,14 @@ explicitly approved screenshots, never a private remote desktop. Recheck the
 destination rules and account eligibility, choose the required venue/flair,
 and arrange to answer questions. Keep a link to any published post to avoid
 duplicate promotion. These checks do not themselves authorize publication.
+
+## Trackable launch links
+
+Use one source label for each permitted post; keep campaign values free of personal details.
+
+- GitHub announcement: https://py-killer.github.io/lantern-vnc/?utm_source=github&utm_medium=community&utm_campaign=preview2
+- HN draft: https://py-killer.github.io/lantern-vnc/?utm_source=hackernews&utm_medium=community&utm_campaign=preview2
+- macapps App Pile draft: https://py-killer.github.io/lantern-vnc/?utm_source=reddit_macapps&utm_medium=community&utm_campaign=preview2
+- selfhosted megathread draft: https://py-killer.github.io/lantern-vnc/?utm_source=reddit_selfhosted&utm_medium=community&utm_campaign=preview2
+
+These links count only visits that allow automatic website counts. The private owner dashboard is at https://lantern-vnc-mac.fts227.chatgpt.site/admin ; it is not part of the customer website navigation.

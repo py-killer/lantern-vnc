@@ -1,6 +1,14 @@
 # Changelog
 
-## 1.1.0-preview.1 — Unreleased preview candidate
+## 1.1.0-preview.2 — 2026-11-20
+
+- Refine the original macOS app icon and route Help → Send Feedback to the no-account website form.
+- Publish the static Wiki, anonymous feedback receipts, and a no-payment interest poll.
+- Add optional first-party website counts and a private owner dashboard/inbox; the Mac app sends no analytics.
+- Fix source packaging recursively including earlier downloadable source archives.
+- Preserve the Preview 1 renderer and input implementation and its recorded automated checks. Native display hardware coverage and Apple notarization remain pending.
+
+## 1.1.0-preview.1 — 2026-11-20
 
 This local candidate supersedes the 1.0 navigation implementation, which had large-desktop scaling and edge-navigation issues. The following controls are implemented; the candidate is not a fully verified stable release.
 

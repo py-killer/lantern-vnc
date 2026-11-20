@@ -8,7 +8,7 @@ private final class SidebarDocument: NSView {
 }
 
 private enum AppLinks {
-    static var feedback: URL { configured("feedbackURL", fallback:"https://github.com/py-killer/lantern-vnc/issues/new") }
+    static var feedback: URL { configured("feedbackURL", fallback:"https://py-killer.github.io/lantern-vnc/#feedback") }
     static var support: URL { configured("supportURL", fallback:"https://py-killer.github.io/lantern-vnc/#support") }
     private static func configured(_ key: String, fallback: String) -> URL {
         if let value=UserDefaults.standard.string(forKey:key), let url=URL(string:value), url.scheme == "https" { return url }

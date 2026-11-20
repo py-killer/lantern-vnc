@@ -1,4 +1,4 @@
-# Lantern VNC 1.1.0-preview.1
+# Lantern VNC 1.1.0-preview.2
 
 A free native VNC viewer for Apple Silicon Macs, built with AppKit and Metal.
 Connect directly to a TightVNC server, view its desktop, and control it with
@@ -14,7 +14,7 @@ preview, not a fully checked stable release.
 
 [Project website](https://py-killer.github.io/lantern-vnc/) ·
 [Source repository](https://github.com/py-killer/lantern-vnc) ·
-[Send feedback](https://github.com/py-killer/lantern-vnc/issues/new/choose) ·
+[Community and feedback](COMMUNITY.md) ·
 [Wiki](docs/wiki/Home.md) · [Changelog](CHANGELOG.md) ·
 [Release checklist](docs/RELEASE_CHECKLIST.md) ·
 [Preview test results](docs/TEST_RESULTS-1.1.0-preview.1.md)
@@ -92,14 +92,25 @@ active at a time.
 
 ## Optional support and feedback
 
-The app's feedback command opens the project's GitHub issue form in your
-browser. GitHub may require its own sign-in to submit an issue; that account
-is optional and is never required to run Lantern VNC. Feedback is submitted
-only when you choose to send it. Do not post VNC passwords or private network
-details in a public issue.
+Choose the route that fits your message:
+
+- [Report a bug](https://github.com/py-killer/lantern-vnc/issues/new?template=bug_report.yml), even if you cannot reproduce it yet.
+- [Suggest an idea](https://github.com/py-killer/lantern-vnc/issues/new?template=feature_request.yml) or [ask a question](https://github.com/py-killer/lantern-vnc/issues/new?template=question.yml).
+- [Share thanks or a working setup](https://github.com/py-killer/lantern-vnc/issues/new?template=thanks.yml).
+- [Use website feedback without GitHub sign-in](https://py-killer.github.io/lantern-vnc/#feedback).
+
+The app's **Help → Send Feedback…** opens GitHub in your browser. GitHub may
+require its own sign-in; that account is optional and is never required to
+run Lantern VNC. The website form sends feedback only when you submit it
+and shows a receipt after a successful submission. Read its privacy notice
+before sending. A failed or offline submission has not reached maintainers.
+Neither route is required to use the app, and neither promises an instant
+reply. Leave passwords, private server details, and personal desktop data
+out of reports. See [the community guide](COMMUNITY.md) for how reports are
+handled and [the security policy](SECURITY.md) for possible vulnerabilities.
 
 Use **Help → Save Feedback…** to write a local text file containing your notes,
-app version, macOS version, GPU name, and renderer name. The app does not
+app version, release channel/build, macOS version, GPU name, and renderer name. The app does not
 automatically add a server address, password, clipboard contents, or network
 credentials. Review your own notes before sharing the file. Saving feedback
 does not send it anywhere.
@@ -118,6 +129,13 @@ stay in the app's local preferences. VNC passwords stay in process memory
 for connection setup and are not written to disk by the app. Enabling
 clipboard sharing transfers clipboard text between your Mac and the server;
 leave it disabled if you do not want that transfer.
+
+The project website is separate from the desktop app. Its explicit feedback
+form sends the selected feedback kind, message, and random visitor/event
+identifiers to the website service. Its privacy notice explains those fields
+and optional aggregate website counts, including how to stop automatic
+counts. Website collection does not add analytics to the app, and visiting
+the website or submitting feedback is not required for a VNC connection.
 
 This build does **not encrypt the VNC transport** and does not implement an
 SSH tunnel. Use it on a network you trust or through a separately established
@@ -221,9 +239,15 @@ uses ad hoc signing, and macOS may require you to approve opening it.
 
 ## Community
 
-See [Contributing](CONTRIBUTING.md), the [code of conduct](CODE_OF_CONDUCT.md),
-and the [security policy](SECURITY.md). Issues and pull requests are public;
-review notes and screenshots before sharing them.
+Start with [community and feedback](COMMUNITY.md) or the
+[web wiki](https://py-killer.github.io/lantern-vnc/wiki/). Maintainers and
+configured maintenance automation may investigate real reports, fix issues,
+and reply directly in GitHub. Maintenance is best effort, without a promised
+response time. See [Contributing](CONTRIBUTING.md), the
+[code of conduct](CODE_OF_CONDUCT.md), and the [security policy](SECURITY.md).
+Issues and pull requests are public; review notes and screenshots before
+sharing. [Unpublished promotion drafts](docs/PROMOTION.md) document current
+claims and posting venues; they are not external posts.
 
 ## License and acknowledgments
 

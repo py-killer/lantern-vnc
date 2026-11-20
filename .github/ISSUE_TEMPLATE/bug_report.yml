@@ -1,18 +1,20 @@
 name: Report a bug
-description: Describe a reproducible Lantern VNC problem.
+description: Tell us what went wrong. A partial report is welcome.
 title: "[Bug] "
 labels: [bug]
 body:
   - type: markdown
     attributes:
-      value: "Issues are public. Do not include passwords, private server addresses, clipboard contents, or personal desktop information. For vulnerabilities, follow SECURITY.md instead."
+      value: |
+        Thanks for reporting a problem. Fill in what you know; you do not need to diagnose it first.
+        Issues and attachments are public. Leave out passwords, server addresses, clipboard contents, and personal desktop data.
+        For a possible vulnerability, use the [security reporting guidance](https://github.com/py-killer/lantern-vnc/blob/main/SECURITY.md).
   - type: input
     id: version
     attributes:
-      label: Lantern version and macOS version
-      placeholder: "Lantern 1.1.0-preview1, macOS 15.7"
-    validations:
-      required: true
+      label: Lantern version, build, and macOS version, if known
+      description: "Help → Save Feedback… includes these details. Review the file before attaching it."
+      placeholder: "Lantern 1.1.0 Preview 1, build 2; macOS 26.6"
   - type: input
     id: server
     attributes:
@@ -29,24 +31,15 @@ body:
     id: reproduce
     attributes:
       label: Steps to reproduce
-      description: Include the viewing mode and which edges or controls are affected.
-    validations:
-      required: true
+      description: "A short sequence is enough. If you cannot reproduce it, say what you were doing when it happened."
   - type: textarea
     id: display
     attributes:
       label: Display setup, if relevant
-      description: "Remote resolution; Mac window/viewport size; Retina or external display; backing scale if known; Fit/zoom setting. Say whether moving between displays triggers the problem."
-      placeholder: "Remote 5120×2880; local window 1180×760 points; Retina 2×; 100%; bottom-right corner unreachable."
+      description: "For a display/input issue: remote resolution, Mac display, window size, zoom, and whether Hand or View only is on. Mention display switching if it triggers the problem. Approximate values are useful."
+      placeholder: "Remote 5120×2880; MacBook Retina; window about 1180×760; 100%; Hand off; bottom-right corner unreachable."
   - type: textarea
     id: evidence
     attributes:
       label: Additional evidence
       description: "Optional redacted screenshot or feedback notes. Prefer synthetic test content. Saving a feedback file does not submit it automatically."
-  - type: checkboxes
-    id: privacy
-    attributes:
-      label: Before posting
-      options:
-        - label: I removed passwords, private connection details, and personal information from this report and any attachments.
-          required: true

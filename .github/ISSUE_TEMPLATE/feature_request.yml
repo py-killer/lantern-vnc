@@ -1,5 +1,5 @@
 name: Suggest a feature
-description: Explain a task Lantern could support better.
+description: Suggest an improvement, even if you do not have a design in mind.
 title: "[Feature] "
 labels: [enhancement]
 body:
@@ -18,8 +18,6 @@ body:
     attributes:
       label: What behavior would help?
       description: Describe the result you want. A specific interface is optional.
-    validations:
-      required: true
   - type: textarea
     id: alternatives
     attributes:

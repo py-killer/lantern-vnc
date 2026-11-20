@@ -1,0 +1,1 @@
+export default function Page(){return <main style={{fontFamily:"system-ui",padding:"3rem"}}><h1>Lantern VNC</h1><p>Customer feedback and anonymous website counts.</p><p><a href="https://py-killer.github.io/lantern-vnc/">Visit the Lantern website</a></p></main>}

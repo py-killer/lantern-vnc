@@ -4,3 +4,6 @@ outputs/
 .DS_Store
 __pycache__/
 *.pyc
+
+# Local community maintenance state contains private feedback receipts.
+.community/

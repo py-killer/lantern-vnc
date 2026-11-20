@@ -1,0 +1,17 @@
+name: Website service checks
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  anonymous-customer-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check deployed feedback, poll, and owner protection
+        run: node scripts/check-website.mjs

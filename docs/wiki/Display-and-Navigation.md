@@ -2,7 +2,7 @@
 
 [Wiki home](Home.md) · [Getting started](Getting-Started.md) · [Troubleshooting](Troubleshooting.md)
 
-This guide describes the implemented **1.1.0-preview.1 candidate**. It replaces the 1.0 navigation model. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.
+This guide describes the implemented **1.1.0-preview.2**. It replaces the 1.0 navigation model. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.
 
 The server supplies its desktop resolution. Lantern's zoom, window size, and local navigation change your view of that image; they never change the server's display resolution.
 

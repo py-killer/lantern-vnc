@@ -16,7 +16,7 @@ Enter the password again after a failed attempt; Lantern clears the field when s
 
 ## The desktop is tiny, cropped, or an edge is unreachable
 
-In **1.1.0-preview.1**, use **Auto (Readable)** to avoid shrinking below 100%, then use the visible scroll bars or **Hand** to reach the edges. Hand makes dragging, scrolling, and arrow keys move the local view. Press Escape or turn Hand off to resume remote input. Choose **Fit to Window** for an overview, or 125–200% when text needs to be larger. Normal scrolling with Hand off controls the remote app.
+In **1.1.0-preview.2**, use **Auto (Readable)** to avoid shrinking below 100%, then use the visible scroll bars or **Hand** to reach the edges. Hand makes dragging, scrolling, and arrow keys move the local view. Press Escape or turn Hand off to resume remote input. Choose **Fit to Window** for an overview, or 125–200% when text needs to be larger. Normal scrolling with Hand off controls the remote app.
 
 At 100%, one remote pixel maps to one drawable/backing pixel, not one Mac point. Retina and macOS scaled display settings affect perceived text size. Local zoom never changes the server's resolution.
 

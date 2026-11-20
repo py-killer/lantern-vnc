@@ -1,0 +1,27 @@
+name: Ask a question
+description: Get help with setup or using Lantern VNC.
+title: "[Question] "
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask in your own words. The [wiki](https://py-killer.github.io/lantern-vnc/wiki/) may already cover the answer.
+        This is public: do not include passwords, server addresses, or personal desktop information.
+  - type: textarea
+    id: question
+    attributes:
+      label: What would you like help with?
+      description: Describe what you are trying to do and where you are stuck.
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried, if anything?
+      description: Include a redacted error message or a link to the documentation you followed.
+  - type: input
+    id: setup
+    attributes:
+      label: Versions, if relevant
+      placeholder: "Lantern version/build; macOS version; VNC server product/version"

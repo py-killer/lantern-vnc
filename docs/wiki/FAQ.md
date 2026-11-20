@@ -16,7 +16,7 @@ Up to three named device profiles, with one remote session active at a time. Pro
 
 ## Why does 100% look small on my Retina screen?
 
-It maps remote pixels to drawable/backing pixels rather than treating each remote pixel as a full Mac point. The final appearance also depends on macOS display scaling. In 1.1.0-preview.1, Auto (Readable) avoids shrinking below 100%; choose 125–200% for larger text and use scroll bars or Hand to navigate. Fit to Window gives a whole-desktop overview. None of these controls changes the remote operating system's resolution. See [Display and navigation](Display-and-Navigation.md).
+It maps remote pixels to drawable/backing pixels rather than treating each remote pixel as a full Mac point. The final appearance also depends on macOS display scaling. In 1.1.0-preview.2, Auto (Readable) avoids shrinking below 100%; choose 125–200% for larger text and use scroll bars or Hand to navigate. Fit to Window gives a whole-desktop overview. None of these controls changes the remote operating system's resolution. See [Display and navigation](Display-and-Navigation.md).
 
 ## Why does scrolling move the remote app instead of my view?
 
@@ -24,7 +24,7 @@ With Hand off, wheel/trackpad scrolling is sent to the remote computer. Turn on 
 
 ## Is the new navigation release fully verified?
 
-1.1.0-preview.1 is a local preview candidate with the new controls implemented. Physical 1× external/2× Retina transitions, monitor disconnect/reconnect, and the complete manual hardware matrix remain unverified. Read the [release checklist](../RELEASE_CHECKLIST.md) before treating it as a stable release.
+1.1.0-preview.2 is an early-access release with the new controls implemented. Physical 1× external/2× Retina transitions, monitor disconnect/reconnect, and the complete manual hardware matrix remain unverified. Read the [release checklist](../RELEASE_CHECKLIST.md) before treating it as a stable release.
 
 ## Does resizing Lantern change the remote resolution?
 

@@ -14,7 +14,7 @@ mkdir -p "$OUTPUT_DIR" "$WORKSPACE_DIR/work"
 STAGING_DIR="$(mktemp -d "$WORKSPACE_DIR/work/lantern-package.XXXXXX")"
 trap 'rm -rf "$STAGING_DIR"' EXIT
 
-for source_item in App native scripts tests vendor licenses docs .github README.md LICENSE THIRD_PARTY_NOTICES.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md CHANGELOG.md .gitignore; do
+for source_item in App native scripts tests vendor licenses docs .github README.md LICENSE THIRD_PARTY_NOTICES.md COMMUNITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md CHANGELOG.md .gitignore; do
   if [[ ! -e "$PROJECT_DIR/$source_item" ]]; then
     echo "Missing source item: $source_item" >&2
     exit 1
@@ -55,12 +55,15 @@ import sys
 
 project, stage = map(Path, sys.argv[1:])
 items = ('App', 'native', 'scripts', 'tests', 'vendor', 'licenses', 'docs', '.github',
-         'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'CONTRIBUTING.md',
+         'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'COMMUNITY.md', 'CONTRIBUTING.md',
          'CODE_OF_CONDUCT.md', 'SECURITY.md', 'CHANGELOG.md', '.gitignore')
 excluded = {'.git', '.DS_Store', '__pycache__', '.pytest_cache',
             'build', 'node_modules', '.cache'}
 compiled = {'.o', '.a', '.dylib', '.so', '.pyc', '.pyo'}
 def ignore(path, names):
+    # Published downloads are outputs, never corresponding-source inputs.
+    if Path(path) == project / 'docs':
+        return [name for name in names if name == 'downloads' or name in excluded]
     return [name for name in names
             if name in excluded or Path(name).suffix in compiled]
 stage.mkdir(parents=True)

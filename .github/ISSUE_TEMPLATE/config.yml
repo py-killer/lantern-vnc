@@ -1,8 +1,11 @@
 blank_issues_enabled: true
 contact_links:
   - name: Read the Lantern wiki
-    url: https://github.com/py-killer/lantern-vnc/blob/main/docs/wiki/Home.md
+    url: https://py-killer.github.io/lantern-vnc/wiki/
     about: Setup, display controls, troubleshooting, and frequently asked questions.
+  - name: Website feedback — no GitHub sign-in
+    url: https://py-killer.github.io/lantern-vnc/#feedback
+    about: Send a bug, idea, or thank-you through the website. Read its privacy notice before submitting.
   - name: Security reporting guidance
     url: https://github.com/py-killer/lantern-vnc/blob/main/SECURITY.md
     about: Read this before sharing a possible vulnerability. Do not post sensitive details in a public issue.

@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://py-killer.github.io/lantern-vnc/sitemap.xml

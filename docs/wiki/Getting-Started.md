@@ -33,4 +33,4 @@ Passwords are not saved in device profiles. Enter the VNC password again when co
 
 Choose **Disconnect** when finished. **Command–K** connects or disconnects, **Control–Command–F** toggles full screen, and **Control–Command–S** shows/hides the connection sidebar. See the [display guide](Display-and-Navigation.md) for zoom and Hand controls.
 
-These controls are implemented in 1.1.0-preview.1. It remains a preview while physical display transitions and the manual hardware matrix are unverified.
+These controls are implemented in 1.1.0-preview.2. It remains a preview while physical display transitions and the manual hardware matrix are unverified.

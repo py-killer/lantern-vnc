@@ -1,0 +1,22 @@
+name: Share thanks or what worked
+description: Tell us what was useful. No donation or detailed report needed.
+title: "[Thanks] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A short note is welcome. Please leave private server and desktop details out of this public issue.
+        Prefer not to use GitHub? The [website feedback form](https://py-killer.github.io/lantern-vnc/#feedback) accepts thank-yous too.
+  - type: textarea
+    id: message
+    attributes:
+      label: Your note
+      placeholder: "What helped you, or what worked in your setup?"
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Compatibility note, if you want to share one
+      description: "Product names and versions only; no addresses or credentials. One working setup does not certify other hardware."
+      placeholder: "Lantern version; Mac model/macOS; VNC server product/version"

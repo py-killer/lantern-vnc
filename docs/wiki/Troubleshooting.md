@@ -6,17 +6,31 @@
 
 Confirm that the VNC server is running, its current address is correct, and its firewall permits connections from your Mac. Use the TCP listening port, commonly `5900`, rather than a display number. Guest Wi-Fi isolation, an unreachable private address, or a disconnected VPN can prevent access even when both machines have internet service.
 
-Lantern does not discover computers, establish a VPN, or provide a cloud relay. Establish the network route separately. If macOS previously denied local network permission, review the app's permission in System Settings.
+Use **Find…** to search a private Wi-Fi/Ethernet network on the selected port, or enter a known address manually. Lantern does not establish a VPN or provide a cloud relay. Establish those network routes separately.
+
+## Find… shows no servers
+
+Check that both computers are on a reachable network, the server is running, and Port matches its VNC listening port. Allow local-network access if macOS asks. If access was denied, review **System Settings → Privacy & Security → Local Network** when that setting is available, enable Lantern, and retry the search. Settings and prompts vary by macOS version.
+
+Choose the correct Wi-Fi/Ethernet network in the picker. Search checks private IPv4 only, on one selected port; it does not search VPN interfaces, IPv6, Bonjour, public IPv4 networks, or all ports. For subnets larger than `/24`, only the local `/24` neighborhood is searched. Guest Wi-Fi isolation and firewalls can hide an otherwise running server. Retry after changing Wi-Fi, or enter the server's known address manually. Cancel stops the current search.
+
+A discovered result means the endpoint returned a VNC greeting. It does not verify the server's identity, password, or control permissions. A single result is selected automatically. Confirm its alias with **Save Computer** to save the profile before connecting; this does not authenticate or save a password. A full three-device list leaves a one-off connection available without claiming that another profile was saved.
 
 ## Authentication failed
 
 Use the VNC password configured on the server. It may differ from the computer's account password. Classic VNC authentication uses only the first eight password bytes. Confirm that the server offers compatible VNC authentication rather than a vendor cloud login or an enterprise identity method.
 
-Enter the password again after a failed attempt; Lantern clears the field when starting a connection. Do not post it in an issue or feedback file.
+If a remembered password is wrong, replace the field's contents with the correct VNC password. Lantern clears the field when starting a connection and can reload a remembered password after disconnecting. A password is saved or replaced only after a successful connection with **Remember password** enabled. An authentication failure does not establish that the port is wrong. Do not post passwords in an issue or feedback file.
+
+## Remembered password is unavailable or wrong
+
+Passwords are separate from device profiles and keyed by host and TCP port. A different address or port is a different saved endpoint. Selecting a saved device loads its remembered password if Keychain allows it; editing the endpoint clears the previous credential.
+
+Enter a password manually if Keychain is locked, access is denied, or saving fails. macOS may ask for Keychain access. Uncheck **Remember password** to delete the saved value; **Remove** deletes the selected profile and its password. If deletion fails, Lantern reports it rather than claiming the password was removed. Keychain errors do not prevent manual connections.
 
 ## The desktop is tiny, cropped, or an edge is unreachable
 
-In **1.1.0-preview.2**, use **Auto (Readable)** to avoid shrinking below 100%, then use the visible scroll bars or **Hand** to reach the edges. Hand makes dragging, scrolling, and arrow keys move the local view. Press Escape or turn Hand off to resume remote input. Choose **Fit to Window** for an overview, or 125–200% when text needs to be larger. Normal scrolling with Hand off controls the remote app.
+In **1.1.0-preview.3**, use **Auto (Readable)** to avoid shrinking below 100%, then use the visible scroll bars or **Hand** to reach the edges. Hand makes dragging, scrolling, and arrow keys move the local view. Press Escape or turn Hand off to resume remote input. Choose **Fit to Window** for an overview, or 125–200% when text needs to be larger. Normal scrolling with Hand off controls the remote app.
 
 At 100%, one remote pixel maps to one drawable/backing pixel, not one Mac point. Retina and macOS scaled display settings affect perceived text size. Local zoom never changes the server's resolution.
 

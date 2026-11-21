@@ -5,6 +5,14 @@ import AppKit
 import MetalKit
 import Foundation
 
+private final class TestPasswordStore: PasswordStorage {
+    var values: [String:String] = [:]
+    private func key(_ host:String,_ port:UInt16)->String { "\(host.lowercased()):\(port)" }
+    func read(host:String,port:UInt16)throws->String? { values[key(host,port)] }
+    func save(host:String,port:UInt16,password:String)throws { values[key(host,port)]=password }
+    func remove(host:String,port:UInt16)throws { values.removeValue(forKey:key(host,port)) }
+}
+
 @main
 struct AppUIHarness {
     private static var checks=0
@@ -62,7 +70,8 @@ struct AppUIHarness {
         _ = store.save(name:"Test two",host:"test-two.local",port:5901)
         _ = store.save(name:"Test three",host:"test-three.local",port:5902)
         let actualPreferencesBefore=UserDefaults.standard.persistentDomain(forName:"local.lantern.vnc")
-        let controller=try ViewerController(showWindow:false,preferences:preferences)
+        let passwordStore=TestPasswordStore()
+        let controller=try ViewerController(showWindow:false,preferences:preferences,passwordStore:passwordStore)
         guard let window=controller.window,let content=window.contentView else { fatalError("Missing owned viewer window") }
         defer {
             controller.stop()

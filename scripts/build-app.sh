@@ -2,7 +2,7 @@
 set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="$PROJECT_DIR/build"
-APP_DIR="${APP_OUTPUT:-$BUILD_DIR/Lantern VNC.app}"
+APP_DIR="${APP_OUTPUT:-$BUILD_DIR/artifacts.noindex/Lantern VNC.app}"
 if [[ ! -f "$BUILD_DIR/vnc/libvncclient.a" || ! -f "$BUILD_DIR/jpeg/libjpeg.a" ]]; then
   "$PROJECT_DIR/scripts/build-deps.sh"
 fi
@@ -13,8 +13,8 @@ xcrun clang -O3 -arch arm64 -mmacosx-version-min=13.0 -std=c11 -Wall -Wextra -We
 xcrun swiftc -O -whole-module-optimization -swift-version 5 -target arm64-apple-macosx13.0 \
   -module-cache-path "$BUILD_DIR/module-cache" \
   -import-objc-header "$PROJECT_DIR/native/VNCBridge.h" \
-  -framework AppKit -framework Metal -framework MetalKit -framework QuartzCore \
-  "$PROJECT_DIR/App/App.swift" "$PROJECT_DIR/App/DeviceStore.swift" "$PROJECT_DIR/App/DesktopViewport.swift" "$PROJECT_DIR/App/VNCSession.swift" "$PROJECT_DIR/App/MetalDesktop.swift" \
+  -framework AppKit -framework Metal -framework MetalKit -framework QuartzCore -framework Network -framework Security \
+  "$PROJECT_DIR/App/App.swift" "$PROJECT_DIR/App/DeviceStore.swift" "$PROJECT_DIR/App/PasswordStore.swift" "$PROJECT_DIR/App/NetworkDiscovery.swift" "$PROJECT_DIR/App/VNCDiscoveryController.swift" "$PROJECT_DIR/App/DesktopViewport.swift" "$PROJECT_DIR/App/VNCSession.swift" "$PROJECT_DIR/App/MetalDesktop.swift" \
   "$BUILD_DIR/VNCBridge.o" "$BUILD_DIR/vnc/libvncclient.a" "$BUILD_DIR/jpeg/libjpeg.a" -lz \
   -o "$APP_DIR/Contents/MacOS/LanternVNC"
 cp "$PROJECT_DIR/App/Info.plist" "$APP_DIR/Contents/Info.plist"

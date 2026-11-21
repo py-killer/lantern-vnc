@@ -26,7 +26,7 @@
 <h2 id="what-you-need">What you need</h2>
 <ul>
 <li>An Apple Silicon Mac running macOS 13 or later. The supplied app is an arm64 build; Intel Macs are not supported.</li>
-<li>A running VNC server, its reachable address and TCP port, and its VNC password if authentication is enabled.</li>
+<li>A running VNC server, its TCP port, and its VNC password if authentication is enabled. Find a nearby server in the app or enter its reachable address manually.</li>
 <li>A trusted local network, or a VPN/SSH connection that you establish separately. This build does not encrypt the VNC transport.</li>
 </ul>
 <p>The downloadable app does not need Xcode, Python, CMake, or a Lantern account. Development tools are needed only to build from source.</p>
@@ -35,18 +35,21 @@
 <li>Get the Mac ZIP from the <a href="https://py-killer.github.io/lantern-vnc/">project website</a> and extract it. Move <strong>Lantern VNC.app</strong> to Applications or another folder you control.</li>
 <li>Open the app. Current builds are ad hoc signed and not Apple-notarized. If macOS blocks a copy you trust, use Finder's contextual <strong>Open</strong> command or review the available <strong>Open Anyway</strong> option in Privacy &amp; Security. Do not disable Gatekeeper system-wide.</li>
 <li>If macOS asks for local network access, allow it so Lantern can reach your server.</li>
-<li>Enter the server's address and TCP port. The usual port is <code>5900</code>; a server on display <code>:1</code> often uses <code>5901</code>. Enter the actual TCP port configured by your server, not the display number.</li>
-<li>Enter the password configured for VNC on the server and choose <strong>Connect</strong>. A Windows or macOS account password is not necessarily the VNC password. Classic VNC authentication uses the first eight password bytes.</li>
+<li>Set the TCP port, usually <code>5900</code>, and choose <strong>Find…</strong> beside Server. If one server is found, it is selected automatically. Confirm or edit its alias and choose <strong>Save Computer</strong> to add it to your device list immediately. If several are found, select the one you want first. You can enter a known address manually instead. A server on display <code>:1</code> often uses <code>5901</code>; enter its actual TCP port, not the display number.</li>
+<li>Enter the password configured for VNC on the server and choose <strong>Connect</strong>. A Windows or macOS account password is not necessarily the VNC password. Classic VNC authentication uses the first eight password bytes. <strong>Remember password</strong> is off for a new endpoint; enable it only if you want macOS Keychain to save the password after a successful connection.</li>
 <li>Start with <strong>Auto (Readable)</strong>. If the image is larger than the window, use its visible scroll bars or turn on <strong>Hand</strong> to move the local view. Choose <strong>Fit to Window</strong> for a whole-desktop overview. Turn Hand off and click the remote image to send keyboard and pointer input.</li>
 </ol>
 <p>If the connection fails, check the <a href="troubleshooting.html">troubleshooting guide</a>. Repeatedly trying a different password cannot fix an unreachable server or a blocked port.</p>
+<h2 id="find-a-local-server">Find a local server</h2>
+<p>Search checks one selected TCP port on active private IPv4 Wi-Fi/Ethernet interfaces. Choose the network in the picker if more than one is available. It respects the subnet mask; for a subnet larger than <code>/24</code>, only the local <code>/24</code> neighborhood is searched. You can cancel, retry, or select a result as it appears. The search reads a VNC greeting and sends no authentication or credentials.</p>
+<p>Discovery does not search VPN interfaces, IPv6, Bonjour, other ports, or public IPv4 networks. No result does not mean no server exists: check local-network permission, the port, and whether the server is reachable, or use its address manually. A result does not establish the server's identity, password, or control permissions.</p>
 <h2 id="save-your-usual-devices">Save your usual devices</h2>
-<p>Choose <strong>Save…</strong> to save a name, server address, and port. Lantern can save up to three devices and keeps one session active at a time. Choose a saved device to restore its connection settings; use <strong>Remove</strong> to free a saved slot.</p>
-<p>Passwords are not saved in device profiles. Enter the VNC password again when connecting. A full saved list does not prevent a one-off connection using the Server and Port fields.</p>
+<p>The finder saves a named device when you confirm its alias. Use <strong>Rename…</strong> for an existing saved device, or <strong>Save…</strong> for a manually entered connection. A successful connection also saves a device when a slot is available, using the alias from the picker or the server's desktop name for a new profile. Lantern can save up to three devices and keeps one session active at a time. Choose a saved device to restore its connection settings; use <strong>Remove</strong> to free a saved slot.</p>
+<p>Passwords are not saved in device profiles. If you enable <strong>Remember password</strong>, the password is saved separately in the classic macOS login Keychain after a successful connection and can be loaded for the same host and port. Keychain synchronization is disabled. Uncheck the box to delete that saved password; <strong>Remove</strong> deletes both the selected profile and its saved password. If Keychain access is denied or unavailable, enter the password manually. A full saved list does not prevent a one-off connection using the Server and Port fields.</p>
 <h2 id="before-using-clipboard-sharing">Before using clipboard sharing</h2>
 <p><strong>Share clipboard text</strong> is optional. When enabled, text can move between your Mac and the server. Leave it off if you do not want that transfer. <strong>View only</strong> suppresses keyboard, pointer, and clipboard changes sent to the server; the server can also independently restrict a connection to viewing.</p>
 <p>Choose <strong>Disconnect</strong> when finished. <strong>Command–K</strong> connects or disconnects, <strong>Control–Command–F</strong> toggles full screen, and <strong>Control–Command–S</strong> shows/hides the connection sidebar. See the <a href="display-and-navigation.html">display guide</a> for zoom and Hand controls.</p>
-<p>These controls are implemented in 1.1.0-preview.2. It remains a preview while physical display transitions and the manual hardware matrix are unverified.</p></article>
+<p>These controls are implemented in 1.1.0-preview.3. It remains a preview while physical display transitions and the manual hardware matrix are unverified.</p></article>
       <nav class="guide-paging" aria-label="More guides"><a href="index.html"><span>Previous guide</span><strong>Overview</strong></a><a class="next-guide" href="display-and-navigation.html"><span>Next guide</span><strong>Display &amp; navigation</strong></a></nav>
       <div class="page-actions"><a href="https://github.com/py-killer/lantern-vnc/edit/main/docs/wiki/Getting-Started.md">Improve this guide</a><a href="https://github.com/py-killer/lantern-vnc/blob/main/docs/wiki/Getting-Started.md">Read the Markdown</a><a href="https://github.com/py-killer/lantern-vnc/issues/new/choose">Share feedback</a></div>
     </main>
@@ -54,6 +57,7 @@
 <ul>
 <li><a href="#what-you-need">What you need</a></li>
 <li><a href="#open-and-connect">Open and connect</a></li>
+<li><a href="#find-a-local-server">Find a local server</a></li>
 <li><a href="#save-your-usual-devices">Save your usual devices</a></li>
 <li><a href="#before-using-clipboard-sharing">Before using clipboard sharing</a></li>
 </ul>

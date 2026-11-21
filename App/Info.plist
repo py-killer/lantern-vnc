@@ -7,14 +7,14 @@
 <key>CFBundleDisplayName</key><string>Lantern VNC</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>1.1.0</string>
-<key>CFBundleVersion</key><string>3</string>
-<key>LanternReleaseChannel</key><string>Preview 2</string>
+<key>CFBundleVersion</key><string>4</string>
+<key>LanternReleaseChannel</key><string>Preview 3</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
-<key>NSLocalNetworkUsageDescription</key><string>Lantern VNC connects directly to your TightVNC server on your local network so you can view and control its desktop.</string>
+<key>NSLocalNetworkUsageDescription</key><string>Lantern VNC finds VNC servers on your local Wi-Fi or Ethernet network and connects to the server you choose so you can view and control its desktop.</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>NSHumanReadableCopyright</key><string>Copyright 2026. GPL-2.0-or-later. Includes LibVNCClient and libjpeg-turbo.</string>
 </dict></plist>

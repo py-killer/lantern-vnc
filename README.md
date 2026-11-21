@@ -1,6 +1,6 @@
 # Lantern VNC — free VNC client for Mac
 
-**Current release: 1.1.0-preview.2 · Apple Silicon · macOS 13+**
+**Current preview: 1.1.0-preview.3 · Apple Silicon · macOS 13+**
 
 A free native VNC client for Apple Silicon Macs, built with AppKit and Metal.
 Use it for an occasional remote task or regular direct access to your existing VNC server.
@@ -22,7 +22,7 @@ preview, not a fully checked stable release.
 [Community and feedback](COMMUNITY.md) ·
 [Wiki](docs/wiki/Home.md) · [Changelog](CHANGELOG.md) ·
 [Release checklist](docs/RELEASE_CHECKLIST.md) ·
-[Preview test results](docs/TEST_RESULTS-1.1.0-preview.1.md)
+[Preview 1 test results](docs/TEST_RESULTS-1.1.0-preview.3.md)
 
 ## Open the app
 
@@ -40,13 +40,25 @@ run the supplied app.
    a source you trust. Do not disable Gatekeeper system-wide.
 3. If macOS requests access to the local network, allow it so the app can
    reach your server.
-4. Leave Server at `192.168.0.101` and Port at `5900`, or enter your own VNC
-   host and TCP port. Enter the **VNC password configured in TightVNC** and
-   choose **Connect**. The port field is a TCP port, not a VNC display number.
+4. Choose **Find…** beside Server to search your local Wi-Fi or Ethernet
+   network. Select a result, optionally name the computer, and choose **Use
+   Server**. You can also enter a known host and TCP port manually. The usual
+   port is `5900`; the field takes a TCP port, not a VNC display number.
+5. Enter the **VNC password configured in TightVNC** and choose **Connect**.
+   **Remember password** is off for a new endpoint. Enable it only if you want
+   the password saved in macOS Keychain after a successful connection.
 
 Classic VNC password authentication uses only the first eight password bytes.
 An account password for Windows or macOS is not necessarily your VNC password.
 The app does not require a Lantern account.
+
+**Find…** checks only the selected port on private IPv4 Wi-Fi/Ethernet
+interfaces. It respects the subnet mask and limits larger networks to the
+local `/24` neighborhood. It reads the VNC greeting without authenticating
+or sending credentials. Search can be canceled or retried; a result confirms
+a VNC greeting, not that your password or remote-control permissions work.
+VPN interfaces, IPv6, Bonjour, and other ports are not automatically searched.
+Use a manual address for those setups or when no result appears.
 
 ## Use the remote desktop
 
@@ -91,9 +103,13 @@ screen size, and network; the renderer uses Metal and the JPEG decoder uses
 Apple Silicon SIMD.
 
 Save up to three device profiles to switch between your usual servers. Device
-settings are stored locally on your Mac. Passwords are not stored in saved
-profiles; enter the VNC password for each session. One remote session is
-active at a time.
+settings are stored locally on your Mac. Choose **Save…** to name a device;
+a successful connection also saves it when a slot is available, using your
+chosen alias or the server's desktop name. Passwords are stored separately
+in macOS Keychain only when you opt in. Uncheck **Remember password** to
+delete the saved password for that host and port; **Remove** deletes the
+selected profile and its saved password. One remote session is active at a
+time. A full saved list still permits a one-off connection.
 
 ## Optional support and feedback
 
@@ -104,9 +120,9 @@ Choose the route that fits your message:
 - [Share thanks or a working setup](https://github.com/py-killer/lantern-vnc/issues/new?template=thanks.yml).
 - [Use website feedback without GitHub sign-in](https://py-killer.github.io/lantern-vnc/#feedback).
 
-The app's **Help → Send Feedback…** opens GitHub in your browser. GitHub may
-require its own sign-in; that account is optional and is never required to
-run Lantern VNC. The website form sends feedback only when you submit it
+The app's **Help → Send Feedback…** opens the website feedback form in your
+browser. GitHub issue forms are another option and may require a GitHub
+sign-in; that account is never required to run Lantern VNC. The website form sends feedback only when you submit it
 and shows a receipt after a successful submission. Read its privacy notice
 before sending. A failed or offline submission has not reached maintainers.
 Neither route is required to use the app, and neither promises an instant
@@ -131,7 +147,13 @@ of this version remains available without a tip.
 Lantern VNC connects directly to the selected server. It has no account
 service, analytics, cloud relay, or licensing server. Saved server settings
 stay in the app's local preferences. VNC passwords stay in process memory
-for connection setup and are not written to disk by the app. Enabling
+for connection setup unless you explicitly enable **Remember password**.
+Remembered passwords use the classic macOS login Keychain with Keychain
+synchronization disabled; plaintext passwords are never written to
+preferences or device profiles, or automatically included in feedback exports. This is not a claim that
+Keychain items are excluded from every backup. Keychain errors leave manual
+password entry available. **Find…** makes bounded, user-requested local
+connections solely to check VNC greetings. Enabling
 clipboard sharing transfers clipboard text between your Mac and the server;
 leave it disabled if you do not want that transfer.
 
@@ -154,9 +176,13 @@ internet. The server decides whether a connection permits remote control.
   (or the value you entered), and the firewall allows that connection.
 - **Connection timed out:** put both devices on a reachable LAN or VPN. Guest
   Wi-Fi isolation and a changed server address can prevent access.
+- **Find… returns no results:** check local-network permission, Wi-Fi/Ethernet,
+  and the selected port, then retry. Discovery does not search VPNs, IPv6, or
+  every port; enter a known server address manually when needed.
 - **Authentication failed:** check the TightVNC VNC password and whether the
   server offers standard VNC password authentication. This build does not
-  provide RealVNC cloud login or enterprise identity authentication.
+  provide RealVNC cloud login or enterprise identity authentication. A wrong
+  password does not establish that the server address or port is wrong.
 - **Connected but input does nothing:** turn off Hand, disable View only, and confirm the
   server account/password grants control. A view-only TightVNC password
   remains view-only even when the app's checkbox is off.
@@ -194,7 +220,7 @@ From the extracted source folder:
 ```sh
 ./scripts/build-deps.sh
 ./scripts/build-app.sh
-open "build/Lantern VNC.app"
+open "build/artifacts.noindex/Lantern VNC.app"
 ```
 
 If CMake is installed outside PATH, set `CMAKE_BIN` to its executable. The
@@ -213,6 +239,8 @@ Run the local mock-server integration tests with Python 3:
 TEST_SANITIZE=1 ./tests/run-tests.sh
 ./tests/run-display-tests.sh
 ./tests/run-app-ui-tests.sh
+./tests/run-network-discovery-tests.sh
+./tests/run-password-tests.sh
 ```
 
 The protocol tests cover decoded pixels, remote resizing, input/clipboard

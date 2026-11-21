@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0-preview.3 — 2026-11-21
+
+- Add **Find…** beside Server to search the selected VNC port on private IPv4 Wi-Fi/Ethernet networks. Search is bounded, cancellable, and confirms RFB greetings without authentication. Broader subnets use the local `/24` neighborhood; VPNs, IPv6, Bonjour, and port sweeps remain outside discovery.
+- Select a lone discovery result automatically, ask the user to confirm its alias, and save that named profile immediately. Existing devices can be renamed with **Rename…**. Manual connections can still use the server's desktop name after authentication.
+- Add opt-in **Remember password**, using the classic macOS login Keychain separately from device profiles. Passwords save only after a successful connection. Unchecking removes the endpoint's password; removing a device also removes its password. Plaintext passwords are never saved in preferences or profiles. Keychain errors preserve manual entry.
+- Keep discovery retry/manual-address fallbacks and clear a previous endpoint's credential when the host or port changes.
+- Preserve the earlier display/navigation implementation. Physical external-display transitions, the complete manual hardware matrix, Developer ID signing, and Apple notarization remain pending. This is a preview, not a stable-release claim.
+
 ## 1.1.0-preview.2 — 2026-11-20
 
 - Refine the original macOS app icon and route Help → Send Feedback to the no-account website form.

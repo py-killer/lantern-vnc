@@ -1,6 +1,12 @@
-# Release checklist — 1.1.0-preview.1 candidate
+# Release checklist — 1.1.0-preview.3 candidate
 
-**Status: unreleased preview. Manual hardware checks are not complete.** This checklist records no individual pass yet. Empty boxes and matrix cells mean not run. Implemented behavior is not proof that a hardware scenario passed. Keep failed or unavailable cases visible with a reason and a linked issue.
+**Status: preview candidate. Manual hardware checks are not complete.** Empty boxes and matrix cells mean not run. Implemented behavior and targeted automated checks are not proof that a hardware scenario passed. Keep failed or unavailable cases visible with a reason and a linked issue.
+
+## Targeted discovery observation — 2026-11-21
+
+After changing Wi-Fi, a production-backend scan of exactly one current private IPv4 Wi-Fi `/24` checked 253 other addresses on TCP 5900 and found one endpoint with a valid RFB 3.8 greeting. It sent no authentication, passwords, or remote input. This confirms discovery on that network at that time; it is not an authenticated-session, alias-UI, or general network-compatibility result. Private addresses are omitted from this public record.
+
+The [Preview 1 test report](TEST_RESULTS-1.1.0-preview.1.md) remains historical evidence for that candidate; its counts do not establish the new discovery or Keychain behavior.
 
 ## Record the candidate and environment
 
@@ -70,14 +76,32 @@ The listed controls are implemented in the preview candidate. Record their obser
 | Keyboard modifiers, function keys, Command-to-Control, focus loss | Correct key messages; no stuck keys; Mac app/window shortcuts remain usable. | Not run |
 | Text clipboard disabled, enabled, manually sent, and view-only | Transfers only as configured; no feedback loop; no file/image-transfer claim. | Not run |
 | Unicode text with UTF-8 and legacy clipboard servers | Supported characters round-trip; legacy replacement behavior documented; oversized messages bounded. | Not run |
-| Three saved devices, rename/remove, unsaved one-off connection | Settings persist locally; passwords do not; one active session. | Not run |
+| Three saved devices, rename/remove, unsaved one-off connection | Profiles persist locally without passwords; opt-in passwords use Keychain separately; one active session. | Not run |
 | Feedback export and external feedback/support links | Export stays local until shared; no credentials/private address added automatically; no payment/account gate. | Not run |
 | Oversized/malformed remote framebuffer | Client rejects unsupported allocation safely and remains usable. | Not run |
+
+## Discovery and optional password regression
+
+| Scenario | Expected result | Result/evidence |
+| --- | --- | --- |
+| Find on private Wi-Fi/Ethernet, selected default/custom port | Only the selected TCP port is checked. Actual subnet mask is respected, with larger subnets limited to the local `/24` neighborhood; at most 32 concurrent probes. | Targeted backend observation above; full UI/network matrix not run |
+| Public IPv4, VPN, IPv6-only, or no supported interface | No unsupported network is scanned; manual-address fallback remains available. | Not run |
+| Fragmented/malformed greeting or silent endpoint | Only a valid 12-byte RFB greeting creates a result; probes time out without authentication or input. | Not run |
+| Cancel, change network, retry, then close the picker | Connections close; prior-scan callbacks do not repopulate results; no retained sheet/controller prevents another search. | Not run |
+| Select a result during search and on completion | Selection stays on the same server; Save Computer fills host/port and saves the confirmed alias without connecting. A lone result is selected automatically. | Not run |
+| Confirmed discovery alias, successful/failed login, saved-device rename | Confirming the alias persists the profile before authentication; password saving still requires successful authentication. Blank names are rejected, capacity stays at three, and Rename… changes a saved device name. | Not run |
+| Remember password off for a new endpoint | Connection succeeds without a Keychain write; no plaintext password in preferences, profiles, or feedback. | Not run |
+| Opt in with correct/incorrect password, cancellation, and connection failure | Only a successful connection saves the password for that host/port. Failed authentication and cancellation do not save it. | Not run |
+| Reconnect, change host/port, switch device | Correct endpoint's password loads when available; previous endpoint's credential is cleared before another endpoint is used. | Not run |
+| Uncheck Remember password; remove a device | Endpoint's Keychain item is deleted; profile removal also deletes its password. A failed deletion is reported without claiming success. | Not run |
+| Locked/denied/unavailable Keychain or failed save | Error is useful, secrets stay out of logs/exports, and manual password entry/connection remains possible. | Not run |
 
 ## Known limits and publication gate
 
 - [ ] Record remaining issues, affected setups, and practical workarounds in the changelog/wiki. Mark untested real-server/hardware combinations explicitly.
 - [ ] State macOS 13+/Apple Silicon requirements, one active session, and three saved devices accurately.
+- [ ] Explain discovery's private IPv4/single-port/subnet bounds and manual-address fallback; state that a greeting is not proof of identity or authentication.
+- [ ] Explain opt-in classic macOS login Keychain storage, save-after-success behavior, endpoint matching, and deletion. Do not claim Data Protection `WhenUnlockedThisDeviceOnly` semantics or exclusion from every backup.
 - [ ] State no built-in transport encryption/tunnel, cloud relay, audio, file transfer, printing, or recording.
 - [ ] State current framebuffer limits (16,384 pixels per axis, 256 MiB total) and text-clipboard limit (1 MiB).
 - [ ] State ad hoc signing and notarization status accurately; do not claim Apple approval.

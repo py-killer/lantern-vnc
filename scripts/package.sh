@@ -5,7 +5,7 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 WORKSPACE_DIR="$(cd "$PROJECT_DIR/.." && pwd)"
 OUTPUT_DIR="${1:-$WORKSPACE_DIR/outputs}"
-APP_DIR="$PROJECT_DIR/build/Lantern VNC.app"
+APP_DIR="$PROJECT_DIR/build/artifacts.noindex/Lantern VNC.app"
 case "$OUTPUT_DIR" in
   /*) ;;
   *) echo 'Pass an absolute output directory.' >&2; exit 1 ;;
@@ -88,13 +88,14 @@ ditto -c -k --sequesterRsrc --keepParent "$APP_STAGE" "$APP_ZIP"
 ditto -c -k --norsrc --noextattr --keepParent "$SOURCE_STAGE" "$SOURCE_ZIP"
 
 # Replace only this script's named deliverables after both archives succeed.
-if [[ -e "$OUTPUT_DIR/Lantern VNC.app" ]]; then
-  rm -rf "$OUTPUT_DIR/Lantern VNC.app"
+mkdir -p "$OUTPUT_DIR/apps.noindex"
+if [[ -e "$OUTPUT_DIR/apps.noindex/Lantern VNC.app" ]]; then
+  rm -rf "$OUTPUT_DIR/apps.noindex/Lantern VNC.app"
 fi
-ditto "$APP_DIR" "$OUTPUT_DIR/Lantern VNC.app"
+ditto "$APP_DIR" "$OUTPUT_DIR/apps.noindex/Lantern VNC.app"
 mv -f "$APP_ZIP" "$OUTPUT_DIR/Lantern-VNC-macOS.zip"
 mv -f "$SOURCE_ZIP" "$OUTPUT_DIR/Lantern-VNC-source.zip"
 cp "$PROJECT_DIR/README.md" "$OUTPUT_DIR/Lantern-VNC-README.md"
-codesign --verify --deep --strict "$OUTPUT_DIR/Lantern VNC.app"
+codesign --verify --deep --strict "$OUTPUT_DIR/apps.noindex/Lantern VNC.app"
 printf 'Packaged app: %s\nPackaged source: %s\nStandalone app: %s\n' \
-  "$OUTPUT_DIR/Lantern-VNC-macOS.zip" "$OUTPUT_DIR/Lantern-VNC-source.zip" "$OUTPUT_DIR/Lantern VNC.app"
+  "$OUTPUT_DIR/Lantern-VNC-macOS.zip" "$OUTPUT_DIR/Lantern-VNC-source.zip" "$OUTPUT_DIR/apps.noindex/Lantern VNC.app"

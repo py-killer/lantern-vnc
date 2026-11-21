@@ -4,12 +4,12 @@ Lantern is a free native VNC viewer for Apple Silicon Macs running macOS 13 or l
 
 | Guide | What it covers |
 | --- | --- |
-| [Getting started](Getting-Started.md) | Open the app, connect, and save a device. |
+| [Getting started](Getting-Started.md) | Open the app, find a local server, name a device, and optionally remember its password. |
 | [Display and navigation](Display-and-Navigation.md) | Fit, pixel scale, large desktops, and local versus remote scrolling. |
 | [Troubleshooting](Troubleshooting.md) | Connection, authentication, display, and input problems. |
 | [FAQ](FAQ.md) | Compatibility, clipboard behavior, privacy, and project limits. |
 
-These pages describe the implemented **1.1.0-preview.2**. It replaces the 1.0 navigation model, but is still unreleased as a stable version. Physical external-display transitions and the complete manual hardware matrix remain unverified. See the [changelog](../../CHANGELOG.md) and [release checklist](../RELEASE_CHECKLIST.md); unchecked cases are not passes.
+These pages describe the implemented **1.1.0-preview.3**, including bounded local-server discovery and opt-in macOS Keychain passwords. It replaces the 1.0 navigation model, but is still unreleased as a stable version. Physical external-display transitions and the complete manual hardware matrix remain unverified. See the [changelog](../../CHANGELOG.md) and [release checklist](../RELEASE_CHECKLIST.md); unchecked cases are not passes.
 
 ## Feedback and contributions
 

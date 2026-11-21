@@ -1,0 +1,28 @@
+{
+  "checks" : 81,
+  "failures" : [
+
+  ],
+  "keychain" : "not accessed",
+  "network" : "injected fake scanner and synthetic LAN plans only",
+  "observations" : {
+    "multiAfterCompleteAlias" : "Office PC",
+    "multiAfterCompleteRow" : "1",
+    "multiBeforeCompleteAlias" : "Office PC",
+    "multiBeforeCompleteRow" : "1",
+    "multiCallbackAlias" : "Office PC"
+  },
+  "scenarios" : [
+    "no interfaces",
+    "network provider error",
+    "configure, progress, selection\/name preservation, found results, Save Computer",
+    "single-result auto-selection, default name, focus, blank guard, confirmation",
+    "single-result saved alias prefill and confirmation",
+    "network change and empty completion",
+    "scanner error and retry",
+    "cancel without selection or callback",
+    "alias callback value survives onClose ownership release"
+  ],
+  "status" : "passed",
+  "window" : "test-owned offscreen windows; no activation or global events"
+}

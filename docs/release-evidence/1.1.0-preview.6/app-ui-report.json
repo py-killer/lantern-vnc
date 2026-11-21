@@ -7,7 +7,7 @@
   "networkConnections" : 0,
   "preferenceIsolation" : "temporary UserDefaults suite",
   "syntheticRemoteSize" : "5120x2880",
-  "uiChecks" : 4231,
+  "uiChecks" : 4183,
   "windowPresentation" : "owned, offscreen, non-key",
   "windowSizes" : [
     "860x540",

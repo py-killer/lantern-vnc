@@ -5,16 +5,8 @@ import Darwin
 
 protocol PasswordStorage {
     func read(host: String, port: UInt16) throws -> String?
-    func readWithUserApproval(host: String, port: UInt16) throws -> String?
     func save(host: String, port: UInt16, password: String) throws
     func remove(host: String, port: UInt16) throws
-}
-
-extension PasswordStorage {
-    /// Test doubles and non-Keychain stores need no separate approval flow.
-    func readWithUserApproval(host: String, port: UInt16) throws -> String? {
-        try read(host: host, port: port)
-    }
 }
 
 enum PasswordStoreError: LocalizedError {
@@ -30,18 +22,18 @@ enum PasswordStoreError: LocalizedError {
         case .invalidService:
             return "The Keychain password store is not configured correctly."
         case .invalidStoredData:
-            return "The saved Keychain password could not be read. Remove it and save the password again."
+            return "The saved Keychain item contains data this app cannot read."
         case .keychain(let status):
             let explanation: String
             switch status {
             case errSecInteractionNotAllowed:
-                explanation = "Keychain access needs confirmation or an unlocked keychain. Unlock it and try again."
+                explanation = "Keychain access is unavailable with authentication prompts disabled."
             case errSecAuthFailed:
-                explanation = "Keychain access was not authorized. Check access permissions and try again."
+                explanation = "Keychain access was denied. Authentication prompts remain disabled."
             case errSecUserCanceled:
-                explanation = "Keychain access was canceled. You can enter the password without saving it."
+                explanation = "macOS canceled the Keychain operation."
             case errSecNotAvailable, errSecNoSuchKeychain, errSecInvalidKeychain:
-                explanation = "macOS Keychain is unavailable. You can enter the password without saving it."
+                explanation = "macOS Keychain is unavailable."
             case errSecMissingEntitlement:
                 explanation = "This app could not access macOS Keychain with its current signing permissions."
             default:
@@ -59,11 +51,11 @@ enum PasswordStoreError: LocalizedError {
 /// This does NOT claim Data Protection's WhenUnlockedThisDeviceOnly semantics:
 /// that attribute is ignored by the classic keychain and is deliberately absent.
 /// Synchronization is disabled; plaintext passwords are never written to defaults.
+/// Every operation disables authentication UI; there is no interactive API.
 final class PasswordStore: PasswordStorage {
     static let defaultService = "local.lantern.vnc.password"
     private static let interactionLock = NSRecursiveLock()
     private let service: String
-    private let allowAuthenticationUI: Bool
     private let operations: KeychainOperations
 
     /// Injection keeps prompt-policy tests independent of real credentials/UI.
@@ -76,10 +68,8 @@ final class PasswordStore: PasswordStorage {
         var setInteractionAllowed = SecKeychainSetUserInteractionAllowed
     }
 
-    init(service: String = PasswordStore.defaultService, allowAuthenticationUI: Bool = false,
-         operations: KeychainOperations = KeychainOperations()) {
+    init(service: String = PasswordStore.defaultService, operations: KeychainOperations = KeychainOperations()) {
         self.service = service
-        self.allowAuthenticationUI = allowAuthenticationUI
         self.operations = operations
     }
 
@@ -97,13 +87,6 @@ final class PasswordStore: PasswordStorage {
             }
             return password
         }
-    }
-
-    /// Only an explicit user action should call this. It uses the same item,
-    /// service, and ACL; it does not reset or migrate an inaccessible credential.
-    func readWithUserApproval(host: String, port: UInt16) throws -> String? {
-        try PasswordStore(service: service, allowAuthenticationUI: true, operations: operations)
-            .read(host: host, port: port)
     }
 
     func save(host: String, port: UInt16, password: String) throws {
@@ -136,15 +119,15 @@ final class PasswordStore: PasswordStorage {
     }
 
     /// The classic keychain can ignore kSecUseAuthenticationUIFail. Its process-
-    /// local interaction switch is also enforced, with our operations serialized
-    /// so an explicitly approved read cannot race an automatic read/save/remove.
+    /// local interaction switch is also enforced. Serializing all store calls
+    /// prevents one operation from restoring policy while another is active.
     private func withAuthenticationPolicy<T>(_ operation: () throws -> T) throws -> T {
         Self.interactionLock.lock()
         defer { Self.interactionLock.unlock() }
         var previous = DarwinBoolean(false)
         let queried = operations.getInteractionAllowed(&previous)
         guard queried == errSecSuccess else { throw PasswordStoreError.keychain(queried) }
-        let configured = operations.setInteractionAllowed(allowAuthenticationUI)
+        let configured = operations.setInteractionAllowed(false)
         guard configured == errSecSuccess else { throw PasswordStoreError.keychain(configured) }
         let result = Result { try operation() }
         let restored = operations.setInteractionAllowed(previous.boolValue)
@@ -164,8 +147,7 @@ final class PasswordStore: PasswordStorage {
             kSecAttrAccount as String: try Self.account(host: host, port: port),
             kSecUseDataProtectionKeychain as String: false,
             kSecAttrSynchronizable as String: false,
-            kSecUseAuthenticationUI as String: allowAuthenticationUI
-                ? kSecUseAuthenticationUIAllow : kSecUseAuthenticationUIFail,
+            kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail,
         ]
     }
 

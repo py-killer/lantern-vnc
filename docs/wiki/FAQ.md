@@ -47,11 +47,13 @@ Its dirty-region optimization reduces local CPU copying and GPU texture updates 
 
 It is macOS's passive, smoothed TCP round-trip estimate for the connected TCP peer, refreshed in the interface once per second. It excludes input-to-screen delay. Slow capture, encoding, decoding, or rendering can still make a desktop lag when RTT is low. With a local SSH port forward or TCP proxy, it can measure the forwarding endpoint rather than the remote computer.
 
-A dash means no usable estimate; **idle** appears after five seconds without an observed traffic-counter change. Activity age is not RTT sample age, and polling does not force a new sample. The indicator sends no extra probes, input, or frame-update requests, collects no analytics, and does not change picture quality. See [Read network RTT](Display-and-Navigation.md#read-network-rtt) for details and primary references.
+**RTT unavailable** means no usable estimate; **idle** appears after five seconds without an observed traffic-counter change. Activity age is not RTT sample age, and polling does not force a new sample. The indicator sends no extra probes, input, or frame-update requests, collects no analytics, and does not change picture quality. See [Read network RTT](Display-and-Navigation.md#read-network-rtt) for details and primary references.
 
 ## Does Lantern remember zoom and picture settings?
 
 Yes. Fit, Auto, an explicit percentage, or custom pinch zoom and the picture preset are saved per host and TCP port, including across app restarts. Pan positions are not remembered. Changing the host or port selects a different endpoint's preferences. Upgrading imports the old global picture setting once for existing saved devices; a new endpoint uses Fit and Wi-Fi · high quality.
+
+The last normal window size and position are also remembered across launches, separately from those endpoint settings. If its monitor is missing, reopening recovers the saved placement onto an available screen. Window geometry does not change the server's resolution; full physical-monitor transition coverage remains unverified.
 
 ## Why does scrolling move the remote app instead of my view?
 
@@ -71,13 +73,13 @@ Not by this build. Use a trusted LAN or a VPN/SSH tunnel that you establish sepa
 
 ## Does Lantern send analytics or save my password?
 
-It has no account, analytics, licensing, or cloud-relay service. Device settings are stored locally. **Remember password** is off for a new host/port and saves only after a successful connection, using the classic macOS login Keychain with synchronization disabled. Plaintext passwords are never saved in preferences or profiles, or automatically included in feedback exports. Review your own notes before sharing them. This does not promise exclusion from every backup. Uncheck the box to remove that endpoint's saved password; removing its profile also deletes the password. Keychain failures leave manual entry available.
+It has no account, analytics, licensing, or cloud-relay service. Device settings are stored locally. **Remember password** is off for a new host/port and attempts to save only after a successful connection, using the classic macOS login Keychain with synchronization disabled. Plaintext passwords are never saved in preferences or profiles, or automatically included in feedback exports. Review your own notes before sharing them. This does not promise exclusion from every backup. Unchecking the box or removing its profile requests deletion of the saved password. Keychain failures appear inline and leave manual VNC password entry available.
 
 Optional clipboard sharing deliberately transfers text between your Mac and the selected server; leave it disabled if you do not want that transfer. **Find…** makes bounded connections on your chosen local network and port only when requested.
 
-## Why is there a Use saved password… button?
+## Why is a remembered password unavailable?
 
-It appears when a saved password is unavailable through silent Keychain access. Startup, automatic reconnect, and routine password saves/deletions do not open a Mac-password approval dialog. Only an explicit click on **Use saved password…** may ask for your Mac login password to approve Keychain access; this is not the remote VNC password. The button is optional. Enter the VNC password manually instead if you prefer. Lantern keeps the existing storage protections, with no plaintext fallback or Keychain reset.
+All Keychain operations are noninteractive. If access fails, Lantern reports it inline and leaves the VNC password field available; a failed save turns **Remember password** off. There is no approval button or authentication dialog, and inaccessible existing items are left unchanged. Ad hoc signed updates can lose access to an earlier build's items. Reliable remembering across updates is not yet verified, so this preview does not claim that issue is fixed. Storage protections remain in place, with no plaintext fallback or Keychain reset.
 
 ## Does it support file transfer, audio, printing, or multiple sessions?
 

@@ -1,0 +1,16 @@
+{
+  "result": "pass",
+  "geometryChecks": 23,
+  "totalNativeAndGeometryChecks": 39,
+  "nativeSizes": "860x540 and1180x760, two adjusted noncentered origins",
+  "isolation": "invisible native windows, one UUID autosave name, cleanup; production frame name untouched",
+  "coverage": [
+    "restore after setup before autosave registration",
+    "size and origin restored independently",
+    "center only when missing",
+    "reachable title bar preserved",
+    "removed monitor and oversized frame recovery using synthetic screen rectangles",
+    "negative-origin and spanning screens",
+    "normal-frame save; skip fullscreen and unnamed windows"
+  ]
+}

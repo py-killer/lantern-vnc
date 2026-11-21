@@ -2,7 +2,9 @@
 
 ## 1.1.0-preview.6 — 2026-11-21
 
-- Show an **RTT** line beneath the connection status while connected, refreshed once per second from macOS's passive smoothed TCP estimate. Missing or zero estimates display a dash.
+- Restore the last normal window size and position instead of centering it on every launch. Recover saved offscreen placement when its monitor is unavailable. Window geometry is separate from per-endpoint zoom/picture settings and never changes the server's resolution.
+- Show an **RTT** line beneath the connection status while connected, refreshed once per second from macOS's passive smoothed TCP estimate. Missing or zero estimates display **RTT unavailable**.
+- Remove the saved-password approval action and forbid authentication UI for every Keychain read, save, and deletion. Report errors inline and turn Remember password off after a failed save. Leave inaccessible old items unchanged, with no plaintext fallback or security reset. Cross-update persistence with ad hoc signing remains unverified.
 - Mark the estimate **idle** after five seconds without an observed transport-counter change. Activity age describes observed traffic, not the age of the kernel's RTT sample.
 - Keep the scope clear: RTT is to the TCP peer, which can be a local forwarding endpoint. It excludes input-to-screen latency; slow capture, encoding, decoding, and rendering can coexist with low RTT.
 - Add no diagnostic probes, synthetic input, screen-update requests, or analytics. Preserve picture presets, decoded pixel quality, and the Preview 5 rendering path.
@@ -23,7 +25,7 @@
 - Remember zoom mode/custom scale and picture preset separately for each host and port across restarts. Pan positions are not restored. Migrate the previous global picture preset once for existing devices, then keep endpoint settings independent.
 - Add the Wi-Fi preset: request Tight JPEG level 8, matching Balanced, with moderate compression level 3 instead of 1. This trades potential server CPU work for smaller transfers; it is not adaptive and does not guarantee a speed increase. Balanced, Lossless, and Fast keep their previous settings. Picture changes apply on the next connection.
 - Preserve lossless compressed transfer with JPEG disabled. JPEG-enabled presets can affect text; coarse quality levels are not percentages.
-- Keep automatic Keychain reads, saves, and deletions silent, including startup and reconnect. If access needs approval, offer **Use saved password…** as an explicit optional action that may request Mac login approval. Manual VNC password entry remains available, with no plaintext fallback or Keychain security reset.
+- Keep automatic Keychain reads, saves, and deletions silent, including startup and reconnect. This version offered an optional saved-password approval action; Preview 6 removes that action and makes all Keychain operations noninteractive. Manual VNC password entry remains available, with no plaintext fallback or Keychain security reset.
 - Extend the protocol suite with compression/JPEG negotiation and an embedded Tight JPEG decoding fixture. A local AddressSanitizer run passed 75 repeated sessions, including existing authentication, cancellation, input, and cleanup cases. This is correctness evidence, not a performance benchmark.
 - Remain a preview: physical external-display transitions, the full manual hardware matrix, Developer ID signing, and Apple notarization are pending.
 

@@ -46,6 +46,8 @@ Hand is enabled when the connected desktop can be panned. While Hand is active, 
 
 Entering full screen hides the connection sidebar; leaving full screen restores its previous state. The zoom popup and View menu provide the viewing controls without shortcuts.
 
+Lantern also remembers the last normal window size and position across app launches. On reopening, it recovers offscreen placement onto an available screen if the previous monitor is missing. These local window settings keep the server's resolution unchanged. Your Fit/zoom and picture preset remain saved separately for each host and port. Physical monitor transitions still need the manual checks listed below.
+
 ## How the viewport works
 
 Metal renders a viewport the size of the visible local area. A separate pan offset selects which part of the remote image is visible. Rendering and remote pointer coordinates use the same geometry transform, so the image and click mapping follow the same zoom and pan state. The Metal drawable does not grow to the full dimensions of an oversized desktop.
@@ -58,7 +60,7 @@ Click positions still need validation after a display change. If clicks land inc
 
 While connected, **RTT** is displayed below the connection status and refreshed once per second. It reads macOS's smoothed TCP round-trip estimate for that connection, in milliseconds. It does not measure input-to-screen delay. The units and smoothed field are defined in [Apple's TCP header](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/netinet/tcp.h); the [XNU export implementation](https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/netinet/tcp_usrreq.c) returns the kernel estimate.
 
-`RTT —` means there is no usable estimate, including an unavailable or zero value. After five seconds without an observed transport-counter change, the line adds **idle**. The tooltip may show when a traffic-counter change was last observed; this is not the age of the RTT sample. Polling once a second does not create a fresh RTT measurement, and an idle connection can retain an older estimate.
+**RTT unavailable** means there is no usable estimate, including an unavailable or zero value. After five seconds without an observed transport-counter change, the line adds **idle**. The tooltip may show when a traffic-counter change was last observed; this is not the age of the RTT sample. Polling once a second does not create a fresh RTT measurement, and an idle connection can retain an older estimate.
 
 The TCP peer can be a local forwarding endpoint. For example, an SSH port forward on your Mac can have a low local RTT while its onward route to the remote computer is slow. Even on a direct connection, capture, encoding, transfer, decoding, and rendering can add delay beyond this number.
 

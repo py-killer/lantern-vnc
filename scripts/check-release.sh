@@ -15,6 +15,7 @@ xcrun swiftc -swift-version 5 -module-cache-path "$TEST_DIR/module-cache" \
   -o "$TEST_DIR/test-devices"
 "$PROJECT_DIR/tests/run-connection-preferences-tests.sh"
 "$PROJECT_DIR/tests/run-network-latency-tests.sh"
+"$PROJECT_DIR/tests/run-window-placement-tests.sh" --geometry-only
 "$PROJECT_DIR/tests/run-frame-update-tests.sh"
 "$PROJECT_DIR/tests/run-network-discovery-tests.sh"
 if "$PROJECT_DIR/tests/run-password-tests.sh"; then
@@ -29,6 +30,7 @@ else
 fi
 "$TEST_DIR/test-devices"
 if [[ "$mode" == --full ]]; then
+  "$PROJECT_DIR/tests/run-window-placement-tests.sh"
   "$PROJECT_DIR/tests/run-display-tests.sh"
   "$PROJECT_DIR/tests/run-performance-display-tests.sh"
   "$PROJECT_DIR/tests/run-app-ui-tests.sh"

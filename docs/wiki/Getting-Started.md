@@ -21,7 +21,7 @@ The downloadable app does not need Xcode, Python, CMake, or a Lantern account. D
 
 If the connection fails, check the [troubleshooting guide](Troubleshooting.md). Repeatedly trying a different password cannot fix an unreachable server or a blocked port.
 
-Once connected, **RTT** appears below the connection status and refreshes once a second. It is a passive TCP round-trip estimate, not keyboard-to-screen delay. A dash means no usable estimate; **idle** means no traffic-counter change was observed for five seconds. Hover over it for the explanation, including local port-forwarding limits. See [Read network RTT](Display-and-Navigation.md#read-network-rtt).
+Once connected, **RTT** appears below the connection status and refreshes once a second. It is a passive TCP round-trip estimate, not keyboard-to-screen delay. **RTT unavailable** means no usable estimate; **idle** means no traffic-counter change was observed for five seconds. Hover over it for the explanation, including local port-forwarding limits. See [Read network RTT](Display-and-Navigation.md#read-network-rtt).
 
 ## Find a local server
 
@@ -33,11 +33,13 @@ Discovery does not search VPN interfaces, IPv6, Bonjour, other ports, or public 
 
 The finder saves a named device when you confirm its alias. Use **Rename…** for an existing saved device, or **Save…** for a manually entered connection. A successful connection also saves a device when a slot is available, using the alias from the picker or the server's desktop name for a new profile. Lantern can save up to three devices and keeps one session active at a time. Choose a saved device to restore its connection settings; use **Remove** to free a saved slot.
 
-Passwords are not saved in device profiles. If you enable **Remember password**, the password is saved separately in the classic macOS login Keychain after a successful connection and can be loaded for the same host and port. Keychain synchronization is disabled. Uncheck the box to delete that saved password; **Remove** deletes both the selected profile and its saved password. If Keychain access is denied or unavailable, enter the password manually. A full saved list does not prevent a one-off connection using the Server and Port fields.
+Passwords are not saved in device profiles. If you enable **Remember password**, Lantern attempts to save the password separately in the classic macOS login Keychain after a successful connection. Keychain synchronization is disabled. Uncheck the box to request deletion; **Remove** also requests removal of that profile's saved password. If an operation fails, its inline message explains the failure, and inaccessible old items remain unchanged. A full saved list does not prevent a one-off connection using the Server and Port fields.
 
-Startup, reconnect, and routine Keychain reads, saves, and deletions do not open a Mac-password approval dialog. When offered, **Use saved password…** is optional: only that explicit click may request your Mac login password to approve Keychain access. This is different from the remote VNC password. You can always enter the VNC password manually; Lantern does not fall back to plaintext storage or reset Keychain security.
+Every Keychain read, save, and deletion is noninteractive, with no authentication dialog or approval button. A failed save turns **Remember password** off. Manual VNC password entry remains available, with no plaintext fallback or Keychain security reset. Ad hoc signed app updates can lose access to earlier saved items; reliable cross-update persistence has not been verified for this preview.
 
 ## Keep your viewing preferences
+
+The app reopens at its last normal window size and position. If the saved monitor is unavailable, it recovers placement on an available screen. This local window geometry does not change the server's resolution.
 
 Lantern remembers zoom mode—including a custom pinch scale—and picture preset for each host and port, including after restarting the app. Pan positions are not remembered. Picture changes apply on the next connection. On the first upgrade, existing devices inherit the previous global picture preset once; afterward their settings are independent.
 

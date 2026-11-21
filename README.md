@@ -92,6 +92,12 @@ input.
 disconnects. The sidebar is hidden on entering full screen and restored when
 leaving it.
 
+Lantern remembers the last normal window size and position when you reopen
+the app. If its saved monitor is unavailable, placement is recovered onto an
+available screen. This local window geometry is separate from the saved
+Fit/zoom and picture preset for each host and port; it does not change the
+server's resolution.
+
 **View only** suppresses keyboard, pointer, and clipboard changes sent to the
 server. Optional **Map Command to Control** helps with Windows/Linux
 shortcuts. **Ctrl–Alt–Del**, **Clipboard**, and **Refresh screen** remain
@@ -129,7 +135,7 @@ benchmark measures local CPU work, not network or end-to-end performance.
 
 While connected, **RTT** appears below the connection status and refreshes
 once a second. It is macOS's smoothed TCP round-trip estimate for the current
-connection, not input-to-screen delay. `RTT —` means no usable estimate is
+connection, not input-to-screen delay. **RTT unavailable** means no usable estimate is
 available. **Idle** appears after five seconds without an observed transport
 counter change; that activity age is not the age of the RTT sample. Polling
 does not send extra probes, input, or screen-update requests, or add analytics.
@@ -142,18 +148,20 @@ settings are stored locally on your Mac. The finder saves a device when you
 confirm its alias. Choose **Rename…** to change a saved name or **Save…** for
 a manually entered device; a successful manual connection also saves it when
 a slot is available, using the server's desktop name. Passwords are stored separately
-in macOS Keychain only when you opt in. Uncheck **Remember password** to
-delete the saved password for that host and port; **Remove** deletes the
-selected profile and its saved password. One remote session is active at a
+in macOS Keychain only when you opt in and saving succeeds. Uncheck **Remember
+password** to request deletion for that host and port; **Remove** also requests
+deletion of the selected profile's saved password. One remote session is active at a
 time. A full saved list still permits a one-off connection.
 
-Startup, reconnect, and routine Keychain reads, saves, and deletions do not
-open a Mac-password approval dialog. If a saved password needs approval,
-Lantern offers **Use saved password…**; only clicking that optional button
-may ask for your **Mac login password**, which is separate from the remote
-VNC password. You can always enter the VNC password manually instead.
-Unavailable Keychain access reports a hint or error; the app keeps its
-storage protections and does not fall back to plaintext or reset Keychain.
+All Keychain reads, saves, and deletions are noninteractive. Lantern never
+opens a Keychain authentication dialog or offers an approval action. Errors
+appear inline, and a failed save turns **Remember password** off. Inaccessible
+existing items remain unchanged. Manual VNC password entry stays available;
+the app does not use plaintext fallback storage or reset Keychain security.
+
+**Current preview limitation:** ad hoc signed updates can lose access to items
+saved by an earlier build. Reliable remembering across app updates has not
+been verified, and this preview does not claim that issue is fixed.
 
 ## Optional support and feedback
 

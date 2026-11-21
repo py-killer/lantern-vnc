@@ -131,7 +131,7 @@ struct AppUIHarness {
         let password: NSSecureTextField=find("serverPassword",in:content,as:NSSecureTextField.self)
         let quality: NSPopUpButton=find("pictureQuality",in:content,as:NSPopUpButton.self)
         let latency: NSTextField=find("networkLatency",in:content,as:NSTextField.self)
-        expect(latency.isHidden && latency.stringValue == "RTT —","latency is hidden and reset before any connection")
+        expect(latency.isHidden && latency.stringValue == "RTT unavailable","latency is hidden and reset before any connection")
         expect(zoom.itemTitles == ["Auto (Readable)","Fit to Window","50%","75%","100%","125%","150%","200%"],"all supported zoom choices are present")
         expect(zoom.indexOfSelectedItem == 1 && desktop.zoomMode == .fit,"new controller defaults to Fit to Window")
         expect(quality.itemTitles == ["Balanced · fast LAN","Lossless · sharp text","Fast · lower bandwidth","Wi-Fi · high quality"],"four stable picture-quality profiles are available")
@@ -164,7 +164,7 @@ struct AppUIHarness {
                 latencyGeometry(content,snapshot:snapshot)
             }
             controller.testingShowNetworkLatency(nil,connectionName:"Ready to connect")
-            expect(latency.isHidden && latency.stringValue == "RTT —","clearing synthetic presentation restores the disconnected display")
+            expect(latency.isHidden && latency.stringValue == "RTT unavailable","clearing synthetic presentation restores the disconnected display")
         }
         for size in sizes {
             window.setContentSize(size)

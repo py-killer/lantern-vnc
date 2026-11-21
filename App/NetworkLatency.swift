@@ -19,7 +19,7 @@ struct NetworkLatency: Equatable {
     }
 
     var title: String {
-        guard let milliseconds=milliseconds else { return "RTT —" }
+        guard let milliseconds=milliseconds else { return "RTT unavailable" }
         let value=milliseconds > 9999 ? ">9999" : String(Int(milliseconds.rounded()))
         return "RTT \(value) ms" + (isIdle ? " · idle" : "")
     }

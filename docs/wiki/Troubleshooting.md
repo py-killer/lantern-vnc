@@ -26,9 +26,9 @@ If a remembered password is wrong, replace the field's contents with the correct
 
 Passwords are separate from device profiles and keyed by host and TCP port. A different address or port is a different saved endpoint. Selecting a saved device loads its remembered password silently if Keychain allows it; editing the endpoint clears the previous credential.
 
-Startup, automatic reconnect, and routine Keychain reads, saves, and deletions do not open a Mac-password approval dialog. If the saved password needs approval, **Use saved password…** offers an optional explicit retry that may ask for your Mac login password. That approval is separate from the remote server's VNC password. You can always enter the VNC password manually if Keychain is locked, access is denied, approval is canceled, or saving fails.
+Every Keychain read, save, and deletion is noninteractive. Failures are shown inline, and a failed save turns **Remember password** off. The app offers no approval action or Keychain authentication dialog. Manual VNC password entry remains available when an item cannot be read or saved.
 
-Uncheck **Remember password** to delete the saved value; **Remove** deletes the selected profile and its password. If deletion fails, Lantern reports it rather than claiming the password was removed. Keychain errors do not prevent manual connections. Lantern does not reset Keychain security or store a plaintext fallback.
+Uncheck **Remember password** to request deletion of the saved value; **Remove** also requests deletion of its saved password. If deletion fails, Lantern reports it inline and leaves the protected item unchanged. Ad hoc signed updates can lose access to an earlier build's items, and reliable cross-update persistence is not yet verified. The app does not claim that this is fixed, reset Keychain security, or store a plaintext fallback.
 
 ## The desktop is tiny, cropped, or an edge is unreachable
 
@@ -41,6 +41,8 @@ Zoom mode and picture preset are remembered per host and TCP port across restart
 The old 1.0 build has known large-desktop scaling/navigation issues. This preview replaces that model with a fixed viewport and shared rendering/input transform; it is not yet a fully verified stable release. Physical 1× external/2× Retina transitions and the manual hardware matrix remain untested.
 
 Record the remote resolution, local window size, display scale, and mode. Say which edges are inaccessible and whether resizing or moving between screens triggers the issue.
+
+The app remembers its last normal window size and position. When reopened without the previous monitor, it recovers offscreen placement onto an available screen, so the restored size or position may differ. Window geometry is separate from per-host Fit/zoom settings and does not change the server's resolution. Physical display-transition coverage remains incomplete.
 
 ## Clicks land in the wrong place
 
@@ -60,7 +62,7 @@ A server reporting more than 16,384 pixels on either axis or more than 256 MiB o
 
 ## RTT is unavailable, idle, or low despite a slow screen
 
-`RTT —` means macOS has no usable TCP estimate for this connection. **Idle** means no transport-counter change was observed for at least five seconds; it does not mean the connection has failed or reveal when RTT was last sampled. Normal traffic can update the kernel estimate, but polling the indicator does not send probes or request new frames.
+**RTT unavailable** means macOS has no usable TCP estimate for this connection. **Idle** means no transport-counter change was observed for at least five seconds; it does not mean the connection has failed or reveal when RTT was last sampled. Normal traffic can update the kernel estimate, but polling the indicator does not send probes or request new frames.
 
 Low RTT does not include screen capture, encoding, decoding, or rendering delay. Check server load and the picture preset rather than treating RTT as input-to-screen latency. A local SSH port forward or TCP proxy can also report a low RTT to its local endpoint while the onward route is slow. Hover over the indicator or read [its explanation](Display-and-Navigation.md#read-network-rtt).
 

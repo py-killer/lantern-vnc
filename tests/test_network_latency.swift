@@ -12,13 +12,13 @@ struct NetworkLatencyTests {
 
     static func main() {
         let unavailable = NetworkLatency.unavailable
-        expect(unavailable.title == "RTT —", "missing estimate uses a dash rather than zero milliseconds")
+        expect(unavailable.title == "RTT unavailable", "missing estimate explains unavailability rather than showing ambiguous dashes or zero milliseconds")
         expect(unavailable.milliseconds == nil && !unavailable.isIdle && unavailable.observedActivityAgeMilliseconds == nil,
                "unavailable state carries no stale metadata")
         for value: Double? in [nil, 0, -1, 0.999, .nan, .infinity, -.infinity, Double(UInt32.max) + 1, Double.greatestFiniteMagnitude] {
             let result = NetworkLatency(milliseconds: value, observedActivityAgeMilliseconds: 15000, isIdle: true)
             expect(result == unavailable, "invalid transport estimate normalizes to unavailable")
-            expect(result.title == "RTT —", "invalid estimate never becomes a plausible numeric latency")
+            expect(result.title == "RTT unavailable", "invalid estimate never becomes a plausible numeric latency")
             expect(result.toolTip.contains("No usable estimate"), "unavailable tooltip explains absent measurement")
         }
         let cases: [(Double, String)] = [(1,"RTT 1 ms"), (12,"RTT 12 ms"), (250,"RTT 250 ms"),

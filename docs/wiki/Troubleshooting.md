@@ -24,15 +24,19 @@ If a remembered password is wrong, replace the field's contents with the correct
 
 ## Remembered password is unavailable or wrong
 
-Passwords are separate from device profiles and keyed by host and TCP port. A different address or port is a different saved endpoint. Selecting a saved device loads its remembered password if Keychain allows it; editing the endpoint clears the previous credential.
+Passwords are separate from device profiles and keyed by host and TCP port. A different address or port is a different saved endpoint. Selecting a saved device loads its remembered password silently if Keychain allows it; editing the endpoint clears the previous credential.
 
-Enter a password manually if Keychain is locked, access is denied, or saving fails. macOS may ask for Keychain access. Uncheck **Remember password** to delete the saved value; **Remove** deletes the selected profile and its password. If deletion fails, Lantern reports it rather than claiming the password was removed. Keychain errors do not prevent manual connections.
+Startup, automatic reconnect, and routine Keychain reads, saves, and deletions do not open a Mac-password approval dialog. If the saved password needs approval, **Use saved password…** offers an optional explicit retry that may ask for your Mac login password. That approval is separate from the remote server's VNC password. You can always enter the VNC password manually if Keychain is locked, access is denied, approval is canceled, or saving fails.
+
+Uncheck **Remember password** to delete the saved value; **Remove** deletes the selected profile and its password. If deletion fails, Lantern reports it rather than claiming the password was removed. Keychain errors do not prevent manual connections. Lantern does not reset Keychain security or store a plaintext fallback.
 
 ## The desktop is tiny, cropped, or an edge is unreachable
 
-In **1.1.0-preview.3**, use **Auto (Readable)** to avoid shrinking below 100%, then use the visible scroll bars or **Hand** to reach the edges. Hand makes dragging, scrolling, and arrow keys move the local view. Press Escape or turn Hand off to resume remote input. Choose **Fit to Window** for an overview, or 125–200% when text needs to be larger. Normal scrolling with Hand off controls the remote app.
+In **1.1.0-preview.5**, new endpoints start in **Fit to Window** so the whole desktop is visible. Fit can make a 5K desktop's text tiny. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use the visible scroll bars or **Hand** to reach the edges. Hand makes dragging, scrolling, and arrow keys move the local view. Press Escape or turn Hand off to resume remote input. Normal scrolling with Hand off controls the remote app.
 
 At 100%, one remote pixel maps to one drawable/backing pixel, not one Mac point. Retina and macOS scaled display settings affect perceived text size. Local zoom never changes the server's resolution.
+
+Zoom mode and picture preset are remembered per host and TCP port across restarts; pan positions are not. A different address or port has separate preferences. Existing saved devices can retain the old picture choice through a one-time migration, while new endpoints default to Fit and Wi-Fi · high quality.
 
 The old 1.0 build has known large-desktop scaling/navigation issues. This preview replaces that model with a fixed viewport and shared rendering/input transform; it is not yet a fully verified stable release. Physical 1× external/2× Retina transitions and the manual hardware matrix remain untested.
 
@@ -44,7 +48,13 @@ Try **Fit to Window**, then compare the remote pointer with a clearly marked tes
 
 ## The image is stale, slow, or soft
 
-Use **Refresh screen** to request a full update. Picture quality is selected before connecting: choose Lossless for text without JPEG artifacts, Balanced for general use, or Fast when bandwidth is constrained. Remote desktop size, server update behavior, and network conditions all affect performance. Metal rendering does not remove those limits.
+Preview 5 reduces local copying for small changes and can send queued input while a partial screen update is waiting for more data. It preserves pixel quality and the existing compression presets. It does not change VNC network compression or remove server/network delays; large full-screen changes still require full-image work.
+
+Use **Refresh screen** to request a full update. New endpoints default to **Wi-Fi · high quality**: Tight JPEG level 8 with compression level 3. **Balanced** uses the same JPEG level with compression level 1. The higher compression request may save transfer data at a cost in server CPU; it does not promise faster updates. If the server is CPU-limited, compare Balanced using the same task after reconnecting.
+
+**Fast** requests JPEG level 5 and compression level 1, trading picture quality for smaller JPEG updates. **Lossless** disables JPEG while retaining compression at level 1, requesting exact pixels; it can require more data for color-rich content. JPEG-enabled presets do not guarantee lossless text, and fractional local zoom can soften even lossless pixels. Try 100% when checking pixel sharpness.
+
+Picture changes apply on the next connection and are saved for that host and port. There is no automatic quality adaptation. Remote desktop size, server update behavior, and network conditions all affect performance; shrinking the local view does not reduce the requested remote resolution. See the [preset table](FAQ.md#which-picture-preset-should-i-use-on-wi-fi).
 
 A server reporting more than 16,384 pixels on either axis or more than 256 MiB of framebuffer data exceeds the current client limit. Clipboard messages are limited to 1 MiB.
 

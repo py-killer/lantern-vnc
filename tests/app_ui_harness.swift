@@ -13,6 +13,14 @@ private final class TestPasswordStore: PasswordStorage {
     func remove(host:String,port:UInt16)throws { values.removeValue(forKey:key(host,port)) }
 }
 
+private final class PreferenceMagnifyEvent: NSEvent {
+    var point = CGPoint.zero
+    var value: CGFloat = 0
+    override var type: NSEvent.EventType { .magnify }
+    override var locationInWindow: NSPoint { point }
+    override var magnification: CGFloat { value }
+}
+
 @main
 struct AppUIHarness {
     private static var checks=0
@@ -48,7 +56,7 @@ struct AppUIHarness {
     }
     private static func choose(_ index: Int,in popup: NSPopUpButton) {
         popup.selectItem(at:index)
-        expect(popup.sendAction(popup.action,to:popup.target),"zoom popup action is connected")
+        expect(popup.sendAction(popup.action,to:popup.target),"popup action is connected")
     }
     private static func action(_ selector: Selector,on controller: ViewerController) {
         expect(NSApp.sendAction(selector,to:controller,from:nil),"controller menu action is connected: \(selector)")
@@ -96,8 +104,11 @@ struct AppUIHarness {
         let sidebar: NSButton=find("sidebarToggleButton",in:content,as:NSButton.self)
         let picker: NSPopUpButton=find("savedDevicePicker",in:content,as:NSPopUpButton.self)
         let password: NSSecureTextField=find("serverPassword",in:content,as:NSSecureTextField.self)
+        let quality: NSPopUpButton=find("pictureQuality",in:content,as:NSPopUpButton.self)
         expect(zoom.itemTitles == ["Auto (Readable)","Fit to Window","50%","75%","100%","125%","150%","200%"],"all supported zoom choices are present")
-        expect(zoom.indexOfSelectedItem == 0 && desktop.zoomMode == .automatic,"new controller defaults to Auto Readable")
+        expect(zoom.indexOfSelectedItem == 1 && desktop.zoomMode == .fit,"new controller defaults to Fit to Window")
+        expect(quality.itemTitles == ["Balanced · fast LAN","Lossless · sharp text","Fast · lower bandwidth","Wi-Fi · high quality"],"four stable picture-quality profiles are available")
+        expect(quality.indexOfSelectedItem == 3,"new connection defaults to Wi-Fi high quality")
         expect(picker.numberOfItems == 3 && !picker.itemTitles.contains("Add device…"),"three saved devices fit in one picker without a fourth add action")
         expect(password.stringValue.isEmpty,"no password is loaded from preferences")
         expect(!hand.isEnabled,"Hand is disabled without an active session")
@@ -141,11 +152,13 @@ struct AppUIHarness {
             expect(sidebar.sendAction(sidebar.action,to:sidebar.target),"sidebar toolbar action is connected")
             content.layoutSubtreeIfNeeded(); desktop.updateCanvas(); settle()
             expect(!controller.isSidebarVisible && sidebar.state == .off,"toolbar hides the connection sidebar")
+            expect(sidebar.title == "Show settings","collapsed sidebar offers a visible restore action")
             expect(desktop.bounds.width > priorWidth+270,"hiding sidebar expands the desktop viewport")
             geometry(content)
             action(#selector(ViewerController.toggleSidebar),on:controller)
             content.layoutSubtreeIfNeeded(); desktop.updateCanvas(); settle()
             expect(controller.isSidebarVisible && sidebar.state == .on,"menu action restores the sidebar")
+            expect(sidebar.title == "Hide settings","expanded sidebar names its collapse action")
             expect(abs(desktop.bounds.width-priorWidth) < 1,"restoring sidebar restores the original viewport width")
             geometry(content)
         }
@@ -171,6 +184,104 @@ struct AppUIHarness {
         desktop.panMode=true
         choose(1,in:zoom)
         expect(!desktop.panMode && !hand.isEnabled && hand.state == .off,"Fit clears unusable Hand mode without callback recursion")
+        let preferenceStore=ConnectionPreferencesStore(defaults:preferences)
+        choose(1,in:quality)
+        action(#selector(ViewerController.automaticZoom),on:controller)
+        expect(preferenceStore.load(host:"test-one.local",port:5900) == ConnectionPreferences(zoomMode:.automatic,qualityIndex:1),"actual quality/zoom actions persist Auto and Lossless for this endpoint")
+        action(#selector(ViewerController.actualSize),on:controller)
+        let pinch=PreferenceMagnifyEvent()
+        pinch.point=desktop.convert(CGPoint(x:desktop.bounds.midX,y:desktop.bounds.midY),to:nil)
+        pinch.value=0.37
+        desktop.magnify(with:pinch)
+        let customMode=desktop.zoomMode
+        expect(abs(desktop.displayScale-1.37)<0.00001 && zoom.selectedItem?.title == "137% (Custom)","owned pinch event updates real custom zoom control")
+        expect(preferenceStore.load(host:"test-one.local",port:5900) == ConnectionPreferences(zoomMode:customMode,qualityIndex:1),"pinch callback persists custom scale with current quality")
+        let beforeNavigation=preferences.dictionary(forKey:"connectionPreferences.v1") as NSDictionary?
+        desktop.panBy(dx:15,dy:20)
+        window.setContentSize(CGSize(width:1180,height:760));content.layoutSubtreeIfNeeded();desktop.updateCanvas();settle()
+        expect((preferences.dictionary(forKey:"connectionPreferences.v1") as NSDictionary?) == beforeNavigation,"pan/resize callbacks do not overwrite the chosen zoom mode")
+
+        let reopened=try ViewerController(showWindow:false,preferences:preferences,passwordStore:passwordStore)
+        guard let reopenedWindow=reopened.window,let reopenedContent=reopenedWindow.contentView else { fatalError("Missing reopened owned viewer") }
+        defer { reopened.stop();reopenedWindow.delegate=nil;reopenedWindow.orderOut(nil);reopenedWindow.close() }
+        reopenedWindow.ignoresMouseEvents=true;reopenedWindow.setFrameOrigin(NSPoint(x:-15000,y:-15000));reopenedWindow.orderBack(nil)
+        reopenedWindow.setFrameOrigin(NSPoint(x:-15000,y:-15000));reopenedContent.layoutSubtreeIfNeeded();settle()
+        let reopenedDesktop=allViews(reopenedContent).compactMap{$0 as? MetalDesktop}.first!
+        let reopenedZoom: NSPopUpButton=find("desktopZoom",in:reopenedContent,as:NSPopUpButton.self)
+        let reopenedQuality: NSPopUpButton=find("pictureQuality",in:reopenedContent,as:NSPopUpButton.self)
+        let reopenedPicker: NSPopUpButton=find("savedDevicePicker",in:reopenedContent,as:NSPopUpButton.self)
+        expect(reopenedDesktop.zoomMode == customMode && reopenedZoom.selectedItem?.title == "137% (Custom)","recreated controller restores selected endpoint custom zoom")
+        expect(reopenedQuality.indexOfSelectedItem == 1,"recreated controller restores selected endpoint Lossless quality")
+        func selectDevice(_ address:String,_ port:UInt16) {
+            guard let id=store.find(host:address,port:port)?.id,
+                  let index=reopenedPicker.itemArray.firstIndex(where:{$0.representedObject as? String == id}) else { fatalError("Missing owned test device") }
+            choose(index,in:reopenedPicker)
+        }
+        selectDevice("test-two.local",5901)
+        expect(reopenedDesktop.zoomMode == .fit && reopenedZoom.indexOfSelectedItem == 1,"different endpoint without preferences defaults to Fit")
+        expect(reopenedQuality.indexOfSelectedItem == 3,"different endpoint without preferences defaults to Wi-Fi high quality")
+        choose(2,in:reopenedQuality)
+        expect(preferenceStore.load(host:"test-two.local",port:5901) == ConnectionPreferences(zoomMode:.fit,qualityIndex:2),"second endpoint independently saves Fit and Fast")
+        selectDevice("test-one.local",5900)
+        expect(reopenedDesktop.zoomMode == customMode && reopenedQuality.indexOfSelectedItem == 1,"switching back restores first endpoint without leaking second settings")
+        selectDevice("test-two.local",5901)
+        expect(reopenedDesktop.zoomMode == .fit && reopenedQuality.indexOfSelectedItem == 2,"returning to second endpoint restores its chosen profile")
+        expect(!reopenedWindow.isKeyWindow,"preference restoration never activates the second owned window")
+
+        // Editing host/port changes the destination before its field editor
+        // commits. View menu actions or Quit must not save the previous
+        // endpoint's still-displayed choices under that unfinished destination.
+        selectDevice("test-one.local",5900)
+        let reopenedHost: NSTextField=find("serverHost",in:reopenedContent,as:NSTextField.self)
+        let reopenedPort: NSTextField=find("serverPort",in:reopenedContent,as:NSTextField.self)
+        let beforeUnfinishedEdit=preferences.dictionary(forKey:"connectionPreferences.v1") as NSDictionary?
+        func editWithoutFinishing(_ field:NSTextField,_ value:String) {
+            field.stringValue=value
+            reopened.controlTextDidChange(Notification(name:NSControl.textDidChangeNotification,object:field))
+        }
+        editWithoutFinishing(reopenedHost,"unfinished-fixture.local")
+        action(#selector(ViewerController.actualSize),on:reopened)
+        choose(0,in:reopenedQuality)
+        reopened.stop()
+        expect((preferences.dictionary(forKey:"connectionPreferences.v1") as NSDictionary?) == beforeUnfinishedEdit,
+               "zoom, quality, and shutdown never create a preference entry for an unfinished endpoint")
+        editWithoutFinishing(reopenedHost,"test-two.local")
+        editWithoutFinishing(reopenedPort,"5901")
+        action(#selector(ViewerController.automaticZoom),on:reopened)
+        choose(3,in:reopenedQuality)
+        reopened.stop()
+        expect(preferenceStore.load(host:"test-two.local",port:5901) == ConnectionPreferences(zoomMode:.fit,qualityIndex:2),
+               "editing toward a saved endpoint does not overwrite its independent zoom or quality before restore")
+        expect(preferenceStore.load(host:"test-one.local",port:5900) == ConnectionPreferences(zoomMode:customMode,qualityIndex:1),
+               "unfinished endpoint edits leave the previous endpoint's preferences intact")
+        expect((preferences.dictionary(forKey:"connectionPreferences.v1") as NSDictionary?) == beforeUnfinishedEdit,
+               "unfinished edits and repeated stop never add partial host/port combinations")
+        reopened.controlTextDidEndEditing(Notification(name:NSControl.textDidEndEditingNotification,object:reopenedPort))
+        expect(reopenedDesktop.zoomMode == .fit && reopenedZoom.indexOfSelectedItem == 1 && reopenedQuality.indexOfSelectedItem == 2,
+               "finishing endpoint editing restores that endpoint's saved choices")
+        action(#selector(ViewerController.actualSize),on:reopened)
+        choose(3,in:reopenedQuality)
+        expect(preferenceStore.load(host:"test-two.local",port:5901) == ConnectionPreferences(zoomMode:.scale(1),qualityIndex:3),
+               "zoom and quality changes persist again after the destination's choices are restored")
+        selectDevice("test-one.local",5900)
+        expect(reopenedDesktop.zoomMode == customMode && reopenedQuality.indexOfSelectedItem == 1,
+               "previous endpoint remains isolated after another endpoint is committed and edited")
+
+        let legacySuite="LanternVNC.LegacySettingsHarness.\(UUID().uuidString)"
+        let legacyPreferences=UserDefaults(suiteName:legacySuite)!
+        legacyPreferences.removePersistentDomain(forName:legacySuite)
+        defer { legacyPreferences.removePersistentDomain(forName:legacySuite) }
+        legacyPreferences.set("legacy-one.local",forKey:"server");legacyPreferences.set("5900",forKey:"port");legacyPreferences.set(2,forKey:"quality")
+        let legacyDevices=DeviceStore(defaults:legacyPreferences)
+        _=legacyDevices.save(name:"Existing second",host:"legacy-two.local",port:5901)
+        let existingPreferences=ConnectionPreferencesStore(defaults:legacyPreferences)
+        existingPreferences.save(host:"legacy-one.local",port:5900,zoomMode:.scale(1.25),qualityIndex:1)
+        let legacyController=try ViewerController(showWindow:false,preferences:legacyPreferences,passwordStore:TestPasswordStore())
+        defer { legacyController.stop();legacyController.window?.delegate=nil;legacyController.window?.orderOut(nil);legacyController.window?.close() }
+        expect(existingPreferences.load(host:"legacy-one.local",port:5900) == ConnectionPreferences(zoomMode:.scale(1.25),qualityIndex:1),"startup migration preserves an already saved endpoint")
+        expect(existingPreferences.load(host:"legacy-two.local",port:5901) == ConnectionPreferences(zoomMode:.fit,qualityIndex:2),"startup migrates old global quality to previous devices with Fit")
+        expect(existingPreferences.load(host:"brand-new.local",port:5900) == ConnectionPreferences(zoomMode:.fit,qualityIndex:3),"legacy migration does not change an unknown endpoint default")
+        expect(legacyPreferences.bool(forKey:"connectionPreferencesMigrated.v1"),"startup migration is marked once")
         expect(password.stringValue.isEmpty,"all local display interactions leave password empty")
         expect(!window.isKeyWindow,"all local actions remain in a non-key offscreen window")
         let actualPreferencesAfter=UserDefaults.standard.persistentDomain(forName:"local.lantern.vnc")
@@ -181,6 +292,7 @@ struct AppUIHarness {
         if let path=CommandLine.arguments.dropFirst().first {
             let report: [String:Any]=["uiChecks":checks,"windowSizes":sizes.map{"\(Int($0.width))x\(Int($0.height))"},
                 "syntheticRemoteSize":"5120x2880","networkConnections":0,"globalInputEvents":0,
+                "connectionPreferenceCoverage":"Fit/Wi-Fi defaults, four quality profiles, Auto/custom pinch, restart, per-server isolation, unfinished endpoint edits/shutdown, legacy migration",
                 "preferenceIsolation":"temporary UserDefaults suite","windowPresentation":"owned, offscreen, non-key",
                 "macOS":ProcessInfo.processInfo.operatingSystemVersionString,"gpu":desktop.device?.name ?? "Unknown"]
             try JSONSerialization.data(withJSONObject:report,options:[.prettyPrinted,.sortedKeys])

@@ -12,7 +12,7 @@ launch thread.
 
 | Topic | Wording supported by the current project |
 | --- | --- |
-| Release | [1.1.0-preview.2](https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.2), a preview, not a stable release. |
+| Release | [1.1.0-preview.4](https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.4), a preview, not a stable release. |
 | Platform | Apple Silicon, arm64, macOS 13+. No Intel build. |
 | App | Native AppKit interface and Metal renderer; connects directly to an existing VNC server. Built around TightVNC use. |
 | Access | Free current version, no app account, subscription, expiry, or feature unlock. Optional support does not affect access. |
@@ -32,7 +32,7 @@ independent certification. Avoid claims about competitors' current pricing
 or licenses unless they are checked separately.
 
 Website: <https://py-killer.github.io/lantern-vnc/>
-Release/downloads: <https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.2>
+Release/downloads: <https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.4>
 Source/issues: <https://github.com/py-killer/lantern-vnc>
 Wiki: <https://py-killer.github.io/lantern-vnc/wiki/>
 
@@ -66,12 +66,12 @@ do not present this draft as ready for an unrestricted main-feed post.
 > Pricing: the current version is free, with no app account, subscription,
 > expiry, or paid unlock. Requirements: Apple Silicon and macOS 13+.
 >
-> It is **1.1.0-preview.2**, not a stable release. The download is ad hoc
+> It is **1.1.0-preview.4**, not a stable release. The download is ad hoc
 > signed and not Apple-notarized. VNC transport is unencrypted; use a trusted
 > LAN or a separate secure tunnel. Physical display-transition testing remains
 > open. No Intel support, audio, or file transfer.
 >
-> [Official download and source](https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.2)
+> [Official download and source](https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.4)
 > · [Wiki](https://py-killer.github.io/lantern-vnc/wiki/)
 >
 > Feedback about large desktops, MacBook usability, and input mapping would
@@ -107,7 +107,7 @@ tool/Wednesday rules before considering a standalone post.
 > **Deployment:** Download the macOS app, not a Docker image. Requires macOS
 > 13+ and Apple Silicon; configure your own reachable VNC server separately.
 > Source and setup docs are included. The current release is
-> **1.1.0-preview.2**, ad hoc signed and not Apple-notarized. It does not encrypt
+> **1.1.0-preview.4**, ad hoc signed and not Apple-notarized. It does not encrypt
 > VNC or create a secure tunnel, so use a trusted network or a separately
 > established VPN/SSH tunnel. No audio or file transfer; physical display
 > transitions still need manual testing.

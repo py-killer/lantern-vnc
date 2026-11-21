@@ -1,6 +1,7 @@
 /*
  *  Copyright (C) 2011-2012 Christian Beier <dontmind@freeshell.org>
  *  Copyright (C) 1999 AT&T Laboratories Cambridge.  All Rights Reserved.
+ *  Modified 2026 for Lantern VNC: optional same-thread application wake hook.
  *
  *  This is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,6 +37,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <assert.h>
+#include <time.h>
 #include <rfb/rfbclient.h>
 #include "sockets.h"
 #include "tls.h"
@@ -44,6 +46,71 @@
 void PrintInHex(char *buf, int len);
 
 rfbBool errorMessageOnReadFailure = TRUE;
+
+/* Kept in clientData so the opt-in extension does not change rfbClient's ABI.
+ * The application owns the hook, just as it owns other clientData payloads. */
+static char readWakeHookTag;
+
+rfbBool
+rfbClientSetReadWakeHook(rfbClient* client, const rfbClientReadWakeHook* hook)
+{
+  if (hook && (hook->descriptor < 0 || hook->descriptor == RFB_INVALID_SOCKET ||
+               hook->descriptor >= FD_SETSIZE || !hook->service))
+    return FALSE;
+  if (!hook && !rfbClientGetClientData(client, &readWakeHookTag)) return TRUE;
+  rfbClientSetClientData(client, &readWakeHookTag, (void*)hook);
+  return rfbClientGetClientData(client, &readWakeHookTag) == hook;
+}
+
+static double
+ReadWakeTime(void)
+{
+#ifdef WIN32
+  return (double)GetTickCount64() / 1000.0;
+#else
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  return (double)now.tv_sec + (double)now.tv_nsec / 1000000000.0;
+#endif
+}
+
+static int
+WaitForReadOrAppWake(rfbClient* client, unsigned int usecs)
+{
+  const rfbClientReadWakeHook* hook =
+    rfbClientGetClientData(client, &readWakeHookTag);
+  double deadline;
+  if (!hook) {
+    /* Preserve the original caller's ignored wait result for other clients. */
+    WaitForMessage(client, usecs);
+    return 0;
+  }
+  if (client->sock < 0 || client->sock == RFB_INVALID_SOCKET ||
+      client->sock >= FD_SETSIZE) return -1;
+  deadline = ReadWakeTime() + (double)usecs / 1000000.0;
+  for (;;) {
+    fd_set reads;
+    struct timeval timeout;
+    double remaining = deadline - ReadWakeTime();
+    int count, maximum;
+    if (remaining < 0) remaining = 0;
+    timeout.tv_sec = (long)remaining;
+    timeout.tv_usec = (long)((remaining - timeout.tv_sec) * 1000000.0);
+    FD_ZERO(&reads);
+    FD_SET(client->sock, &reads);
+    FD_SET(hook->descriptor, &reads);
+    maximum = client->sock > hook->descriptor ? client->sock : hook->descriptor;
+    count = select(maximum + 1, &reads, NULL, NULL, &timeout);
+    if (count < 0 && errno == EINTR) continue;
+    if (count < 0) return -1;
+    if (count == 0) return 0;
+    if (FD_ISSET(hook->descriptor, &reads) && !hook->service(client)) return -1;
+    if (FD_ISSET(client->sock, &reads)) return 1;
+    /* A wake alone must not count as a whole read timeout retry. Keep waiting
+     * within this original interval, avoiding premature timeout under input. */
+    if (ReadWakeTime() >= deadline) return 0;
+  }
+}
 
 /*
  * ReadFromRFBServer is called whenever we want to read some data from the RFB
@@ -162,7 +229,7 @@ ReadFromRFBServer(rfbClient* client, char *out, unsigned int n)
 	    /* TODO:
 	       ProcessXtEvents();
 	    */
-	    WaitForMessage(client, USECS_WAIT_PER_RETRY);
+            if (WaitForReadOrAppWake(client, USECS_WAIT_PER_RETRY) < 0) return FALSE;
 	    i = 0;
 	  } else {
 	    rfbClientErr("read (%d: %s)\n",errno,strerror(errno));
@@ -211,7 +278,7 @@ ReadFromRFBServer(rfbClient* client, char *out, unsigned int n)
 	    /* TODO:
 	       ProcessXtEvents();
 	    */
-	    WaitForMessage(client, USECS_WAIT_PER_RETRY);
+            if (WaitForReadOrAppWake(client, USECS_WAIT_PER_RETRY) < 0) return FALSE;
 	    i = 0;
 	  } else {
 	    rfbClientErr("read (%s)\n",strerror(errno));

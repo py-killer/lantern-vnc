@@ -20,6 +20,16 @@ Full license: `licenses/LibVNCClient-GPL-2.0.txt` and
 `vendor/libvncserver/COPYING`. Corresponding source is provided in the source
 archive, including the build scripts used for the application.
 
+The bundled source includes small Lantern VNC modifications, marked in
+`include/rfb/rfbclient.h`, `src/libvncclient/sockets.c`, and
+`src/libvncclient/rfbclient.c`. An optional read-wake hook lets the existing
+connection thread service outgoing input while waiting for a fragmented
+server message; it does not re-enter the RFB parser. Capability messages are
+read into temporary storage before publishing their complete flags. The
+hook defaults to disabled and does not change the `rfbClient` structure
+layout. These modifications remain GPL-2.0-or-later and are included in the
+corresponding vendor source and build scripts supplied with Lantern VNC.
+
 ## libjpeg-turbo 3.2.1 and the Independent JPEG Group
 
 Project: https://github.com/libjpeg-turbo/libjpeg-turbo

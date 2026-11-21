@@ -1,6 +1,8 @@
-# Release checklist — 1.1.0-preview.3 candidate
+# Release checklist — 1.1.0-preview.5
 
 **Status: preview candidate. Manual hardware checks are not complete.** Empty boxes and matrix cells mean not run. Implemented behavior and targeted automated checks are not proof that a hardware scenario passed. Keep failed or unavailable cases visible with a reason and a linked issue.
+
+Targeted results for this preview are recorded in the [Preview 5 validation report](TEST_RESULTS-1.1.0-preview.5.md). The [Preview 4 report](TEST_RESULTS-1.1.0-preview.4.md) remains historical evidence. The full physical-display matrix below remains a gate for a stable release; publishing a prerelease does not mark those cells as passed.
 
 ## Targeted discovery observation — 2026-11-21
 
@@ -95,6 +97,8 @@ The listed controls are implemented in the preview candidate. Record their obser
 | Reconnect, change host/port, switch device | Correct endpoint's password loads when available; previous endpoint's credential is cleared before another endpoint is used. | Not run |
 | Uncheck Remember password; remove a device | Endpoint's Keychain item is deleted; profile removal also deletes its password. A failed deletion is reported without claiming success. | Not run |
 | Locked/denied/unavailable Keychain or failed save | Error is useful, secrets stay out of logs/exports, and manual password entry/connection remains possible. | Not run |
+| Automatic startup/reconnect with an inaccessible saved item | No macOS authentication dialog. The optional Use saved password… button is the only path that can ask for Keychain approval; canceling preserves manual entry. | See Preview 4 validation report |
+| First connection and per-endpoint settings after restart | New endpoints default to Fit/Wi-Fi; selected zoom and quality persist independently for each host/port. | See Preview 4 validation report |
 
 ## Known limits and publication gate
 

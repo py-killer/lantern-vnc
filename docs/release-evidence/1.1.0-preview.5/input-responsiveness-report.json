@@ -1,0 +1,98 @@
+{
+  "encodingAndQuality": "existing Tight-first encoding order, JPEG levels, and compression presets asserted unchanged",
+  "fixtureInjectionDelayAfterFirstFrameMs": 150,
+  "inputOrder": "button-down/drag/button-up coordinates and key ordering preserved; view-only suppression/toggle, cancellation, and dropped payload exercised",
+  "protocolSessions": 115,
+  "readWakeRegistrationClients": 100,
+  "result": "pass",
+  "sanitizers": "AddressSanitizer on bridge, test harness, and all LibVNCClient C (including modified sockets/rfbclient); libjpeg-turbo remains Release SIMD",
+  "scenarios": {
+    "slow-capabilities": {
+      "allInputArrivedBeforePayloadRelease": true,
+      "finalInputBeforePayloadReleaseMinimumMs": 746.367,
+      "firstInputFromPartialStartMedianMs": 154.079,
+      "payloadHoldMedianMs": 903.238,
+      "sessions": 5,
+      "wireInputEventCounts": [
+        8,
+        8,
+        8,
+        8,
+        8
+      ]
+    },
+    "slow-drop": {
+      "allInputArrivedBeforePayloadRelease": true,
+      "finalInputBeforePayloadReleaseMinimumMs": 746.384,
+      "firstInputFromPartialStartMedianMs": 154.159,
+      "payloadHoldMedianMs": 905.073,
+      "sessions": 5,
+      "wireInputEventCounts": [
+        8,
+        8,
+        8,
+        8,
+        8
+      ]
+    },
+    "slow-large": {
+      "allInputArrivedBeforePayloadRelease": true,
+      "finalInputBeforePayloadReleaseMinimumMs": 747.654,
+      "firstInputFromPartialStartMedianMs": 151.558,
+      "payloadHoldMedianMs": 905.146,
+      "sessions": 5,
+      "wireInputEventCounts": [
+        8,
+        8,
+        8,
+        8,
+        8
+      ]
+    },
+    "slow-small": {
+      "allInputArrivedBeforePayloadRelease": true,
+      "finalInputBeforePayloadReleaseMinimumMs": 745.762,
+      "firstInputFromPartialStartMedianMs": 155.172,
+      "payloadHoldMedianMs": 903.521,
+      "sessions": 5,
+      "wireInputEventCounts": [
+        8,
+        8,
+        8,
+        8,
+        8
+      ]
+    },
+    "slow-toggle-view": {
+      "allInputArrivedBeforePayloadRelease": true,
+      "finalInputBeforePayloadReleaseMinimumMs": 749.203,
+      "firstInputFromPartialStartMedianMs": 154.837,
+      "payloadHoldMedianMs": 905.08,
+      "sessions": 5,
+      "wireInputEventCounts": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ]
+    },
+    "slow-wake-storm": {
+      "allInputArrivedBeforePayloadRelease": true,
+      "finalInputBeforePayloadReleaseMinimumMs": 745.013,
+      "firstInputFromPartialStartMedianMs": 154.714,
+      "payloadHoldMedianMs": 904.879,
+      "sessions": 5,
+      "wireInputEventCounts": [
+        8,
+        8,
+        8,
+        8,
+        8
+      ]
+    }
+  },
+  "scope": "owned loopback RFB fixtures; no live TightVNC/Wi-Fi latency claim",
+  "timeouts": "100 extra wakeups over ~500ms during a ~900ms held payload finish without premature read timeout",
+  "timingReference": "server monotonic partial-update-start/release timestamps; not per-command enqueue timestamps"
+}

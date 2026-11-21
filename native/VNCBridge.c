@@ -26,6 +26,7 @@ typedef struct command {
     command_type type;
     uint32_t key;
     int a, b, c;
+    int pointer_motion;
     char *text;
     size_t length;
     struct command *next;
@@ -43,9 +44,10 @@ struct vncv_client {
     void *context;
     char *host, *password;
     uint16_t port;
-    int initial_view_only, quality;
+    int initial_view_only, quality, compression_level;
     command *head, *tail;
     size_t queued;
+    int enqueued_pointer_mask, enqueued_pointer_known;
     /* Worker-owned below. */
     uint8_t *framebuffer;
     int dirty, left, top, right, bottom;
@@ -140,8 +142,18 @@ static int enqueue(vncv_client *c, command *cmd) {
     if (!c->running || c->stop_requested || c->queued >= MAX_COMMANDS) {
         pthread_mutex_unlock(&c->mutex); free_command(cmd); return 0;
     }
-    /* Coalesce motion only; never coalesce a mouse button transition. */
-    if (cmd->type == CMD_POINTER && c->tail && c->tail->type == CMD_POINTER && c->tail->c == cmd->c) {
+    if (cmd->type == CMD_POINTER) {
+        cmd->pointer_motion = c->enqueued_pointer_known && c->enqueued_pointer_mask == cmd->c;
+        c->enqueued_pointer_mask = cmd->c;
+        c->enqueued_pointer_known = 1;
+    } else if (cmd->type == CMD_VIEW_ONLY) {
+        /* A view-only transition may release/suppress remote buttons. Keep
+           the next pointer event intact even if its mask matches old input. */
+        c->enqueued_pointer_known = 0;
+    }
+    /* Preserve both the mask and coordinates of button-down/up nodes. */
+    if (cmd->type == CMD_POINTER && cmd->pointer_motion && c->tail &&
+        c->tail->type == CMD_POINTER && c->tail->pointer_motion && c->tail->c == cmd->c) {
         c->tail->a = cmd->a; c->tail->b = cmd->b;
         pthread_mutex_unlock(&c->mutex); free_command(cmd); wake_worker(c); return 1;
     }
@@ -363,10 +375,25 @@ static int process_commands(vncv_client *c, rfbClient *rfb) {
     return okay;
 }
 
+/* Invoked by LibVNCClient only on this connection's reader thread while a
+   fragmented server message is waiting for more bytes. Never parse/read a
+   second server message here: service only our ordered outgoing queue. */
+static rfbBool service_input_during_read(rfbClient *rfb) {
+    vncv_client *c = owner(rfb);
+    drain_wake(c);
+    if (stopped(c)) return FALSE;
+    if (!process_commands(c, rfb)) {
+        if (!c->last_error[0]) set_error(c, "The connection closed while sending input.");
+        return FALSE;
+    }
+    return stopped(c) ? FALSE : TRUE;
+}
+
 static void *connection_worker(void *argument) {
     vncv_client *c = argument;
     logging_client = c;
     rfbClient *rfb = NULL;
+    rfbClientReadWakeHook read_wake = { c->wake[0], service_input_during_read };
     int fd = connect_socket(c);
     if (fd < 0) goto finished;
     rfb = rfbGetClient(8, 3, 4);
@@ -393,7 +420,7 @@ static void *connection_worker(void *argument) {
     rfb->format.blueShift = 0;
     rfb->appData.shareDesktop = TRUE;
     rfb->appData.viewOnly = c->initial_view_only;
-    rfb->appData.compressLevel = 1;
+    rfb->appData.compressLevel = c->compression_level;
     rfb->appData.qualityLevel = c->quality;
     rfb->appData.enableJPEG = c->quality >= 0;
     rfb->appData.encodingsString = "tight zrle copyrect hextile zlib corre rre raw";
@@ -422,6 +449,11 @@ static void *connection_worker(void *argument) {
     wipe_free(&c->password);
     c->view_only = c->initial_view_only;
     c->last_error[0] = 0;
+    /* Handshake/authentication must finish before any queued input is sent. */
+    if (!rfbClientSetReadWakeHook(rfb, &read_wake)) {
+        set_error(c, "Unable to initialize responsive input servicing.");
+        goto cleanup;
+    }
     if (!stopped(c) && c->callbacks.connected) c->callbacks.connected(c->context, rfb->desktopName ? rfb->desktopName : "VNC desktop", rfb->width, rfb->height);
     while (!stopped(c)) {
         if (!process_commands(c, rfb)) { if (!c->last_error[0]) set_error(c, "The connection closed while sending input."); break; }
@@ -447,7 +479,10 @@ cleanup:
     pthread_mutex_lock(&c->mutex);
     if (c->shutdown_fd >= 0) { close(c->shutdown_fd); c->shutdown_fd = -1; }
     pthread_mutex_unlock(&c->mutex);
-    if (rfb) rfbClientCleanup(rfb);
+    if (rfb) {
+        rfbClientSetReadWakeHook(rfb, NULL);
+        rfbClientCleanup(rfb);
+    }
     free(c->framebuffer); c->framebuffer = NULL;
 finished:
     wipe_free(&c->password);
@@ -482,7 +517,12 @@ vncv_client *vncv_create(vncv_callbacks callbacks, void *context) {
     return c;
 }
 int vncv_start(vncv_client *c, const char *host, uint16_t port, const char *password, int view_only, int quality) {
-    if (!c || !host || !host[0] || strlen(host) > 253 || !port || quality < -1 || quality > 9) return 0;
+    return vncv_start_with_options(c, host, port, password, view_only, quality, 1);
+}
+int vncv_start_with_options(vncv_client *c, const char *host, uint16_t port, const char *password,
+                            int view_only, int quality, int compression_level) {
+    if (!c || !host || !host[0] || strlen(host) > 253 || !port || quality < -1 || quality > 9 ||
+        compression_level < 0 || compression_level > 9) return 0;
     for (const unsigned char *p = (const unsigned char *)host; *p; p++) if (*p <= 32 || *p == 127) return 0;
     pthread_mutex_lock(&c->mutex);
     int running = c->running;
@@ -496,12 +536,14 @@ int vncv_start(vncv_client *c, const char *host, uint16_t port, const char *pass
     c->password = strndup(password ? password : "", 8);
     if (!c->host || !c->password) { wipe_free(&c->password); return 0; }
     c->port = port; c->initial_view_only = view_only != 0; c->quality = quality;
+    c->compression_level = compression_level;
     c->last_error[0] = 0;
     c->dirty = 0; c->pressed_count = 0; c->pointer_mask = 0;
     drain_wake(c);
     pthread_mutex_lock(&c->mutex);
     clear_commands_locked(c);
     c->stop_requested = 0; c->running = 1;
+    c->enqueued_pointer_mask = 0; c->enqueued_pointer_known = 1;
     int err = pthread_create(&c->worker, NULL, connection_worker, c);
     if (err) { c->running = 0; pthread_mutex_unlock(&c->mutex); wipe_free(&c->password); return 0; }
     c->joinable = 1;

@@ -1,6 +1,6 @@
 # Lantern VNC — free VNC client for Mac
 
-**Current preview: 1.1.0-preview.3 · Apple Silicon · macOS 13+**
+**Current preview: 1.1.0-preview.5 · Apple Silicon · macOS 13+**
 
 A free native VNC client for Apple Silicon Macs, built with AppKit and Metal.
 Use it for an occasional remote task or regular direct access to your existing VNC server.
@@ -22,7 +22,8 @@ preview, not a fully checked stable release.
 [Community and feedback](COMMUNITY.md) ·
 [Wiki](docs/wiki/Home.md) · [Changelog](CHANGELOG.md) ·
 [Release checklist](docs/RELEASE_CHECKLIST.md) ·
-[Preview 1 test results](docs/TEST_RESULTS-1.1.0-preview.3.md)
+[Preview 5 test results](docs/TEST_RESULTS-1.1.0-preview.5.md) ·
+[Earlier Preview 4 results](docs/TEST_RESULTS-1.1.0-preview.4.md)
 
 ## Open the app
 
@@ -41,9 +42,10 @@ run the supplied app.
 3. If macOS requests access to the local network, allow it so the app can
    reach your server.
 4. Choose **Find…** beside Server to search your local Wi-Fi or Ethernet
-   network. Select a result, optionally name the computer, and choose **Use
-   Server**. You can also enter a known host and TCP port manually. The usual
-   port is `5900`; the field takes a TCP port, not a VNC display number.
+   network. A lone result is selected automatically; otherwise select one.
+   Confirm or edit its alias and choose **Save Computer**. You can also enter
+   a known host and TCP port manually. The usual port is `5900`; the field
+   takes a TCP port, not a VNC display number.
 5. Enter the **VNC password configured in TightVNC** and choose **Connect**.
    **Remember password** is off for a new endpoint. Enable it only if you want
    the password saved in macOS Keychain after a successful connection.
@@ -62,14 +64,17 @@ Use a manual address for those setups or when no result appears.
 
 ## Use the remote desktop
 
-The default **Auto (Readable)** mode avoids shrinking a large remote desktop
-below 100%. Use the zoom menu, visible scroll bars, or **Hand** to navigate.
-Lantern changes your local view; it never changes the server's resolution.
+New server addresses/ports start in **Fit to Window**, showing the whole
+desktop. If text is too small, choose **Auto (Readable)** or a larger zoom,
+then use the visible scroll bars or **Hand** to navigate. Lantern remembers
+the zoom mode, including custom pinch scale, for each host and port across
+restarts. Pan positions are not remembered. These controls change your local
+view; they never change the server's resolution.
 
 | Control | Behavior |
 | --- | --- |
-| **Auto (Readable)** | Uses `max(100%, min(Fit zoom, 200%))` in drawable/backing pixels. A large 5K desktop stays at 100% and is navigable rather than being shrunk to fit. |
-| **Fit to Window** | Shows the whole desktop with its aspect ratio preserved. Text may be small on a large remote desktop. |
+| **Fit to Window** | Default for a new endpoint. Shows the whole desktop with its aspect ratio preserved. Text may be small on a large remote desktop. |
+| **Auto (Readable)** | Uses `max(100%, min(Fit zoom, 200%))` in drawable/backing pixels. A large 5K desktop stays at 100% and can be navigated with scroll bars or Hand. |
 | **50%, 75%, 100%, 125%, 150%, 200%** | Explicit local zoom. At 100%, one remote pixel maps to one Metal drawable/backing pixel. macOS scaled display modes may resample the final panel image. |
 | **Pinch** | Sets a custom local zoom between 10% and 400%. |
 | **Hand** | Drag, scroll, or use arrow keys to move the local view. Press Escape or turn Hand off to resume remote control. |
@@ -96,20 +101,48 @@ See [Display and navigation](docs/wiki/Display-and-Navigation.md) for the
 viewing model and [Troubleshooting](docs/wiki/Troubleshooting.md) for common
 connection, display, and input problems.
 
-Choose **Balanced** for everyday LAN use, **Lossless** for sharp text without
-JPEG compression, or **Fast** when bandwidth is limited. Picture quality is
-chosen before connecting. Display performance depends on the server, remote
-screen size, and network; the renderer uses Metal and the JPEG decoder uses
-Apple Silicon SIMD.
+**Wi-Fi · high quality** is the default picture preset for a new endpoint.
+It requests the same Tight JPEG level 8 as **Balanced · fast LAN**, with
+moderate compression level 3 instead of 1. This can trade more server CPU
+for fewer transferred bytes; it does not guarantee faster performance.
+**Fast · lower bandwidth** requests JPEG level 5 and compression 1.
+**Lossless · sharp text** keeps compression enabled at level 1 and disables
+JPEG for exact decoded pixels. JPEG-enabled presets can introduce text
+artifacts; the coarse levels are not quality percentages.
+
+Picture presets are saved per host and port and apply on the next connection.
+On the first upgrade, the former global picture preset is copied to existing
+devices; later changes are independent for each endpoint. Performance depends
+on the server, remote screen size, and network. The renderer uses Metal and
+the JPEG decoder uses Apple Silicon SIMD; there is no automatic bandwidth or
+quality adaptation.
+
+Preview 5 copies and uploads changed parts of the decoded desktop instead
+of repeatedly copying the entire image for small updates. Each display
+buffer keeps the changes it still needs. Queued keyboard and pointer input
+can also be sent while an incomplete screen update waits for more data.
+These local changes preserve decoded pixels, picture presets, and server
+resolution; they do not change VNC compression or guarantee faster Wi-Fi.
+Full-screen changes still require full-image work. The recorded copy
+benchmark measures local CPU work, not network or end-to-end performance.
 
 Save up to three device profiles to switch between your usual servers. Device
-settings are stored locally on your Mac. Choose **Save…** to name a device;
-a successful connection also saves it when a slot is available, using your
-chosen alias or the server's desktop name. Passwords are stored separately
+settings are stored locally on your Mac. The finder saves a device when you
+confirm its alias. Choose **Rename…** to change a saved name or **Save…** for
+a manually entered device; a successful manual connection also saves it when
+a slot is available, using the server's desktop name. Passwords are stored separately
 in macOS Keychain only when you opt in. Uncheck **Remember password** to
 delete the saved password for that host and port; **Remove** deletes the
 selected profile and its saved password. One remote session is active at a
 time. A full saved list still permits a one-off connection.
+
+Startup, reconnect, and routine Keychain reads, saves, and deletions do not
+open a Mac-password approval dialog. If a saved password needs approval,
+Lantern offers **Use saved password…**; only clicking that optional button
+may ask for your **Mac login password**, which is separate from the remote
+VNC password. You can always enter the VNC password manually instead.
+Unavailable Keychain access reports a hint or error; the app keeps its
+storage protections and does not fall back to plaintext or reset Keychain.
 
 ## Optional support and feedback
 
@@ -138,9 +171,9 @@ does not send it anywhere.
 
 The support command opens the website's
 [support section](https://py-killer.github.io/lantern-vnc/#support). Tipping is
-optional. No payment destination is configured in this development build,
-and the app does not collect payments or financial details. Every feature
-of this version remains available without a tip.
+not enabled: the optional interest poll only asks whether you find Lantern
+useful and would consider donating. Clicking it records your answer and
+shows thanks; it makes no payment or pledge. Every feature remains free.
 
 ## Privacy and network security
 
@@ -189,6 +222,10 @@ internet. The server decides whether a connection permits remote control.
 - **Desktop edges are out of view:** use the visible scroll bars or Hand. Use
   Fit to Window for an overview, or a larger explicit zoom for readable text.
 - **Screen looks stale:** request a full update with Refresh screen.
+- **Updates feel slow:** compare Wi-Fi and Balanced after reconnecting if the
+  server may be CPU-limited. Fit changes the local view, not the amount of
+  remote desktop requested. Local copy improvements cannot fix a blocked or
+  unreliable network path.
 
 This is a focused desktop viewer, with no audio, file transfer, printing,
 recording, cloud address book, or unattended relay service. It does not aim
@@ -241,15 +278,24 @@ TEST_SANITIZE=1 ./tests/run-tests.sh
 ./tests/run-app-ui-tests.sh
 ./tests/run-network-discovery-tests.sh
 ./tests/run-password-tests.sh
+./tests/run-frame-update-tests.sh
+FRAME_TEST_SANITIZE=1 ./tests/run-frame-update-tests.sh
 ```
 
-The protocol tests cover decoded pixels, remote resizing, input/clipboard
-messages, view-only suppression, authentication failures, cancellation,
-connection errors, and repeated cleanup. The display test script checks
+The protocol tests cover raw/Tight/JPEG decoded pixels, compression and JPEG
+negotiation, remote resizing, input/clipboard messages, view-only suppression,
+authentication failures, cancellation, connection errors, and repeated cleanup.
+The display test script checks
 viewport geometry and an owned offscreen native window with synthetic
 frames and events. It does not send input to a real remote desktop. If Metal
 or WindowServer is unavailable, that native harness reports exit 77 rather
 than a passing result.
+
+The frame-update tests reconstruct pixels against an independent oracle
+through dirty updates, coalescing, resizing, stale display buffers, and
+concurrent receives. Their 5K copy benchmark reports CPU timing and byte
+counts separately from GPU or network performance. Mock protocol tests also
+check queued input during fragmented screen and capability messages.
 
 Physical display switching, real-server usability, and manual gestures need
 the separate [release checklist](docs/RELEASE_CHECKLIST.md). A successful

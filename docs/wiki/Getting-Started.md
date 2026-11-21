@@ -17,7 +17,7 @@ The downloadable app does not need Xcode, Python, CMake, or a Lantern account. D
 3. If macOS asks for local network access, allow it so Lantern can reach your server.
 4. Set the TCP port, usually `5900`, and choose **Find…** beside Server. If one server is found, it is selected automatically. Confirm or edit its alias and choose **Save Computer** to add it to your device list immediately. If several are found, select the one you want first. You can enter a known address manually instead. A server on display `:1` often uses `5901`; enter its actual TCP port, not the display number.
 5. Enter the password configured for VNC on the server and choose **Connect**. A Windows or macOS account password is not necessarily the VNC password. Classic VNC authentication uses the first eight password bytes. **Remember password** is off for a new endpoint; enable it only if you want macOS Keychain to save the password after a successful connection.
-6. Start with **Auto (Readable)**. If the image is larger than the window, use its visible scroll bars or turn on **Hand** to move the local view. Choose **Fit to Window** for a whole-desktop overview. Turn Hand off and click the remote image to send keyboard and pointer input.
+6. New server addresses/ports start with **Fit to Window** and **Wi-Fi · high quality**. Fit shows the whole desktop. If text is too small, choose **Auto (Readable)** or a larger zoom, then use visible scroll bars or **Hand** to move the local view. Turn Hand off and click the remote image to send keyboard and pointer input.
 
 If the connection fails, check the [troubleshooting guide](Troubleshooting.md). Repeatedly trying a different password cannot fix an unreachable server or a blocked port.
 
@@ -33,10 +33,18 @@ The finder saves a named device when you confirm its alias. Use **Rename…** fo
 
 Passwords are not saved in device profiles. If you enable **Remember password**, the password is saved separately in the classic macOS login Keychain after a successful connection and can be loaded for the same host and port. Keychain synchronization is disabled. Uncheck the box to delete that saved password; **Remove** deletes both the selected profile and its saved password. If Keychain access is denied or unavailable, enter the password manually. A full saved list does not prevent a one-off connection using the Server and Port fields.
 
+Startup, reconnect, and routine Keychain reads, saves, and deletions do not open a Mac-password approval dialog. When offered, **Use saved password…** is optional: only that explicit click may request your Mac login password to approve Keychain access. This is different from the remote VNC password. You can always enter the VNC password manually; Lantern does not fall back to plaintext storage or reset Keychain security.
+
+## Keep your viewing preferences
+
+Lantern remembers zoom mode—including a custom pinch scale—and picture preset for each host and port, including after restarting the app. Pan positions are not remembered. Picture changes apply on the next connection. On the first upgrade, existing devices inherit the previous global picture preset once; afterward their settings are independent.
+
+**Wi-Fi · high quality** requests the same JPEG level as Balanced with moderate compression that may use more server CPU. Choose **Lossless · sharp text** when JPEG artifacts are unwanted; it still uses compressed transfer. Presets do not change the server's resolution, and no preset guarantees the fastest result on every network. See [Display controls](Display-and-Navigation.md) for the exact settings.
+
 ## Before using clipboard sharing
 
 **Share clipboard text** is optional. When enabled, text can move between your Mac and the server. Leave it off if you do not want that transfer. **View only** suppresses keyboard, pointer, and clipboard changes sent to the server; the server can also independently restrict a connection to viewing.
 
 Choose **Disconnect** when finished. **Command–K** connects or disconnects, **Control–Command–F** toggles full screen, and **Control–Command–S** shows/hides the connection sidebar. See the [display guide](Display-and-Navigation.md) for zoom and Hand controls.
 
-These controls are implemented in 1.1.0-preview.3. It remains a preview while physical display transitions and the manual hardware matrix are unverified.
+These controls are implemented in 1.1.0-preview.5. It remains a preview while physical display transitions and the manual hardware matrix are unverified.

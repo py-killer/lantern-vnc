@@ -10,6 +10,8 @@ private final class ConnectionPasswordStore: PasswordStorage {
     var values: [String: String] = [:]
     var saves: [Save] = []
     var removes: [(String, UInt16)] = []
+    var approvedReads: [(String, UInt16)] = []
+    var approvalError: OSStatus?
     var failRead = false, failSave = false, failRemove = false
     private func key(_ host: String, _ port: UInt16) throws -> String {
         try PasswordStore.account(host: host, port: port)
@@ -18,6 +20,11 @@ private final class ConnectionPasswordStore: PasswordStorage {
     func value(host: String, port: UInt16) throws -> String? { values[try key(host, port)] }
     func read(host: String, port: UInt16) throws -> String? {
         if failRead { throw PasswordStoreError.keychain(errSecAuthFailed) }
+        return try value(host: host, port: port)
+    }
+    func readWithUserApproval(host: String, port: UInt16) throws -> String? {
+        approvedReads.append((host, port))
+        if let status = approvalError { throw PasswordStoreError.keychain(status) }
         return try value(host: host, port: port)
     }
     func save(host: String, port: UInt16, password: String) throws {
@@ -106,7 +113,11 @@ struct ConnectionSettingsHarness {
         let port: NSTextField = find("serverPort", in: content, as: NSTextField.self)
         let password: NSSecureTextField = find("serverPassword", in: content, as: NSSecureTextField.self)
         let remember: NSButton = find("rememberPassword", in: content, as: NSButton.self)
+        let approve: NSButton = find("approveSavedPassword", in: content, as: NSButton.self)
+        let passwordHint: NSTextField = find("passwordHint", in: content, as: NSTextField.self)
         let connect: NSButton = find("connectButton", in: content, as: NSButton.self)
+        let zoom: NSPopUpButton = find("desktopZoom", in: content, as: NSPopUpButton.self)
+        let quality: NSPopUpButton = find("pictureQuality", in: content, as: NSPopUpButton.self)
         func endpoint(_ address: String, _ number: UInt16) {
             change(host, to: address, controller: controller)
             change(port, to: String(number), controller: controller)
@@ -120,11 +131,45 @@ struct ConnectionSettingsHarness {
 
         expect(!window.isKeyWindow, "offscreen test window never takes keyboard focus")
         expect(remember.state == .off && password.stringValue.isEmpty, "new endpoint defaults to remember OFF and empty password")
+        expect(approve.isHidden && store.approvedReads.isEmpty, "startup never requests approval and hides the optional approval control")
+        expect(zoom.indexOfSelectedItem == 1 && quality.indexOfSelectedItem == 3, "new connection defaults to Fit and the high-quality Wi-Fi preset")
+        store.failRead = true
+        endpoint("approval-required.invalid", passwordPort); endpoint("127.0.0.1", passwordPort)
+        expect(!approve.isHidden && approve.isEnabled, "automatic read failure offers optional saved-password approval")
+        expect(passwordHint.stringValue.contains("needs macOS approval"), "read failure explains optional macOS approval")
+        expect(store.approvedReads.isEmpty && window.attachedSheet == nil, "automatic read failure never invokes interactive storage or a modal sheet")
         password.stringValue = "mock-password"
+        store.approvalError = errSecUserCanceled
+        expect(approve.sendAction(approve.action, to: approve.target), "explicit approval control is wired")
+        expect(store.approvedReads.count == 1 && store.approvedReads[0].0 == "127.0.0.1" && store.approvedReads[0].1 == passwordPort,
+               "explicit approval alone reaches the selected endpoint")
+        expect(password.stringValue == "mock-password" && remember.state == .off,
+               "canceling optional approval preserves manually entered VNC password and remember OFF")
+        expect(!approve.isHidden && connect.isEnabled && window.attachedSheet == nil,
+               "canceled approval keeps manual connection available without a modal sheet")
+        zoom.selectItem(at: 3)
+        expect(zoom.sendAction(zoom.action, to: zoom.target), "75-percent viewing choice is wired")
+        quality.selectItem(at: 1)
+        expect(quality.sendAction(quality.action, to: quality.target), "lossless quality choice is wired")
+        password.stringValue = "mock-password"
+        toggle(remember, to: .on)
+        expect(store.saves.isEmpty, "pending remember opt-in does not save before authentication")
+        store.failRemove = true; toggle(remember, to: .off)
+        expect(remember.state == .off && password.stringValue == "mock-password",
+               "failed deletion after pending opt-in preserves opt-out and manual password")
+        expect(passwordHint.stringValue.contains("won’t be saved") && passwordHint.stringValue.contains("couldn’t be removed"),
+               "failed deletion distinguishes no future saving from the retained existing item")
+        expect(window.attachedSheet != nil, "failed pending removal explains storage error in an owned sheet")
+        closeOwnedSheet(window); store.failRemove = false
         controller.toggleConnection()
         expect(password.stringValue.isEmpty, "password field cleared on connection start")
         connected()
-        expect(store.saves.isEmpty, "successful authentication does not save when remember is OFF")
+        expect(store.saves.isEmpty, "successful authentication after failed deletion honors opt-out and never saves")
+        expect(store.approvedReads.count == 1, "manual connection after canceled approval never invokes another interactive read")
+        expect(zoom.indexOfSelectedItem == 3 && quality.indexOfSelectedItem == 1, "connecting does not reset the chosen zoom or picture quality")
+        let rememberedView = ConnectionPreferencesStore(defaults: preferences).load(host: "127.0.0.1", port: passwordPort)
+        expect(rememberedView.zoomMode == .scale(0.75) && rememberedView.qualityIndex == 1, "connected endpoint retains its viewing and quality choices")
+        store.failRead = false; store.approvalError = nil
         disconnect()
         expect(remember.state == .off && password.stringValue.isEmpty, "unsaved endpoint stays empty after disconnect")
 
@@ -186,14 +231,32 @@ struct ConnectionSettingsHarness {
         endpoint("other.invalid", passwordPort); endpoint("127.0.0.1", passwordPort)
         expect(remember.state == .on && password.stringValue == "retained-fixture-value", "known credential loads before removal test")
         store.failRemove = true; toggle(remember, to: .off)
-        expect(remember.state == .on, "failed removal restores checked indicator")
+        expect(remember.state == .off, "failed existing-item removal preserves the user's opt-out")
         expect(try store.value(host: "127.0.0.1", port: passwordPort) == "retained-fixture-value", "failed removal preserves existing value")
-        closeOwnedSheet(window); store.failRemove = false; toggle(remember, to: .off)
+        closeOwnedSheet(window); store.failRemove = false
+        toggle(remember, to: .on)
+        expect(store.saves.count == 1, "explicit retry opt-in still waits for authentication before saving")
+        toggle(remember, to: .off)
         expect(try store.value(host: "127.0.0.1", port: passwordPort) == nil, "removal can be retried successfully")
 
         store.failRead = true; endpoint("read-error.invalid", passwordPort)
         expect(password.stringValue.isEmpty && remember.state == .off, "read failure remains empty and opt-in OFF")
         expect(window.attachedSheet == nil, "read failure does not block entry with a modal alert")
+        expect(!approve.isHidden && store.approvedReads.count == 1, "subsequent automatic read failure only exposes the optional approval button")
+        try store.seed(host: "read-error.invalid", port: passwordPort, value: "approved-fixture-value")
+        password.stringValue = "manual-fixture-value"; store.approvalError = errSecAuthFailed
+        expect(approve.sendAction(approve.action, to: approve.target), "approval failure is invoked only by explicit action")
+        expect(password.stringValue == "manual-fixture-value" && remember.state == .off && !approve.isHidden,
+               "denied approval preserves manual password and leaves remembering OFF")
+        expect(store.approvedReads.count == 2 && window.attachedSheet == nil && connect.isEnabled,
+               "failed optional approval remains nonmodal and retryable")
+        store.approvalError = nil
+        expect(approve.sendAction(approve.action, to: approve.target), "approval can be explicitly retried")
+        expect(store.approvedReads.count == 3 && store.approvedReads.last?.0 == "read-error.invalid" && store.approvedReads.last?.1 == passwordPort,
+               "approval retry reads only the current endpoint")
+        expect(password.stringValue == "approved-fixture-value" && remember.state == .on && approve.isHidden,
+               "successful explicit approval loads the saved password and hides the approval control")
+        expect(store.saves.count == 1, "approved reads never save or migrate credentials")
         store.failRead = false
         func profiles() throws -> [SavedDevice] {
             guard let encoded = preferences.data(forKey: "savedDevices.v1") else {
@@ -233,7 +296,8 @@ struct ConnectionSettingsHarness {
         let domain = preferences.persistentDomain(forName: suite) ?? [:]
         let data = try PropertyListSerialization.data(fromPropertyList: domain, format: .binary, options: 0)
         for value in ["mock-password", "second-fixture-value", "port-fixture-value", "prior-fixture-value",
-                      "prior-accepted-fixture", "wrong-fixture-value", "canceled-fixture-value", "retained-fixture-value"] {
+                      "prior-accepted-fixture", "wrong-fixture-value", "canceled-fixture-value", "retained-fixture-value",
+                      "approved-fixture-value", "manual-fixture-value"] {
             expect(data.range(of: Data(value.utf8)) == nil, "no synthetic password bytes persisted in temporary defaults")
         }
         expect(NSDictionary(dictionary: productionBefore ?? [:]).isEqual(to: UserDefaults.standard.persistentDomain(forName: "local.lantern.vnc") ?? [:]), "production app preferences unchanged")
@@ -242,6 +306,7 @@ struct ConnectionSettingsHarness {
             "networkScope": "owned 127.0.0.1 mock servers only", "globalInputEvents": 0,
             "windowPresentation": "owned offscreen non-key", "successfulPasswordSaves": store.saves.count,
             "confirmedProfilesSavedBeforeAuthentication": 2,
+            "explicitApprovalReads": store.approvedReads.count,
             "macOS": ProcessInfo.processInfo.operatingSystemVersionString]
         try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
             .write(to: URL(fileURLWithPath: CommandLine.arguments[4]))

@@ -2,7 +2,7 @@
 
 [Wiki home](Home.md) · [Getting started](Getting-Started.md) · [Troubleshooting](Troubleshooting.md)
 
-This guide describes the implemented **1.1.0-preview.2**. It replaces the 1.0 navigation model. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.
+This guide describes the implemented **1.1.0-preview.5**. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.
 
 The server supplies its desktop resolution. Lantern's zoom, window size, and local navigation change your view of that image; they never change the server's display resolution.
 
@@ -10,12 +10,14 @@ The server supplies its desktop resolution. Lantern's zoom, window size, and loc
 
 | Mode | What it does | When to use it |
 | --- | --- | --- |
-| **Auto (Readable)** | Uses `max(100%, min(Fit zoom, 200%))` in drawable/backing pixels. A large desktop stays at 100% rather than shrinking to fit. | Start here for readable detail and navigate when the image exceeds the viewport. |
-| **Fit to Window** | Fits the complete image inside the viewport with its aspect ratio preserved. Different image/window shapes produce letterboxing. | Get a whole-desktop overview; text can become small at high remote resolutions. |
+| **Fit to Window** | Default for a new host/port. Fits the complete image inside the viewport with its aspect ratio preserved. Different image/window shapes produce letterboxing. | Get a whole-desktop overview; text can become small at high remote resolutions. |
+| **Auto (Readable)** | Uses `max(100%, min(Fit zoom, 200%))` in drawable/backing pixels. A large desktop stays at 100% rather than shrinking to fit. | Choose readable detail and navigate when the image exceeds the viewport. |
 | **50%, 75%, 100%, 125%, 150%, 200%** | Selects an explicit local scale. At 100%, one remote pixel maps to one Metal drawable/backing pixel. | Choose a predictable size; use a larger percentage for bigger text. |
 | **Custom pinch zoom** | A trackpad pinch selects a custom scale between 10% and 400%. | Adjust around the point you are inspecting. |
 
-For example, a 5120 × 2880 desktop on a much smaller viewport starts at 100% in Auto and remains navigable. It is not forced into a tiny whole-image view. Fit to Window is the explicit choice when you want every edge visible at once.
+For example, a new 5120 × 2880 desktop starts fitted so every edge is visible. If the text is too small, choose Auto to view it at 100% or more and navigate with scroll bars or Hand. Explicit higher zoom also makes text larger.
+
+Lantern saves your selected mode, including custom pinch scale, separately for each host and TCP port and restores it after reconnecting or restarting the app. Pan positions are not remembered. Changing the endpoint restores that endpoint's settings, or Fit for a new one.
 
 On a Retina screen, Mac points and drawable/backing pixels are different units. At 100%, remote text can therefore look smaller than Mac interface text. macOS scaled display modes may also resample the final panel image. Use a higher explicit zoom when needed; Auto avoids downscaling but does not promise identical text sizes across machines.
 
@@ -36,7 +38,7 @@ Hand is enabled when the connected desktop can be panned. While Hand is active, 
 
 | Action | Shortcut |
 | --- | --- |
-| Show/hide the connection sidebar | **Control–Command–S** or the sidebar button |
+| Show/hide the connection sidebar | **Control–Command–S** or **Hide settings / Show settings** beside the zoom menu |
 | Zoom in / out | **Control–Command–+ / −** |
 | Actual size, 100% | **Control–Command–0** |
 | Toggle full screen | **Control–Command–F** |
@@ -48,11 +50,24 @@ Entering full screen hides the connection sidebar; leaving full screen restores 
 
 Metal renders a viewport the size of the visible local area. A separate pan offset selects which part of the remote image is visible. Rendering and remote pointer coordinates use the same geometry transform, so the image and click mapping follow the same zoom and pan state. The Metal drawable does not grow to the full dimensions of an oversized desktop.
 
+Preview 5 copies changed parts of the decoded image and uploads those regions to the GPU. Each display buffer accumulates the changes it still needs, so skipped draws do not leave stale areas. Full-screen updates still require full-image work. This preserves the decoded pixels, chosen picture preset, and server resolution; it does not change VNC network compression. Queued input can also be sent while a partial screen message waits for more data. Neither change guarantees a Wi-Fi or end-to-end speed increase.
+
 Click positions still need validation after a display change. If clicks land incorrectly, report the zoom mode, pan position, window size, and whether the issue followed a resize, reconnect, remote resolution change, or move between displays.
 
 ## Picture quality and input are separate controls
 
-**Balanced**, **Lossless**, and **Fast** select picture quality before connecting. They do not change the server resolution or local zoom. Lossless avoids JPEG compression; it does not make text larger.
+Choose a picture preset before connecting. It is saved for that host and port, including across app restarts, and applies on the next connection. Existing devices inherit the former global picture preset once during upgrade; later changes remain independent.
+
+| Preset | Tight JPEG request | Compression request |
+| --- | --- | --- |
+| **Wi-Fi · high quality** | Level 8, the same as Balanced | 3; default for a new endpoint |
+| **Balanced · fast LAN** | Level 8 | 1 |
+| **Lossless · sharp text** | Disabled | 1; transfer remains compressed |
+| **Fast · lower bandwidth** | Level 5 | 1 |
+
+Wi-Fi requests moderate extra compression that may reduce transferred bytes while using more server CPU. It does not guarantee the fastest result. These are fixed requests to the server, with no automatic adaptation. Compression levels apply to Tight/Zlib; the server may choose another supported encoding.
+
+JPEG levels are coarse protocol values from 0–9, not percentages. JPEG-enabled presets can affect text, especially in image-rich regions. Lossless requests exact decoded pixels by disabling JPEG; fractional local zoom or macOS display scaling may still soften their appearance. Picture presets change neither the server resolution nor the local zoom.
 
 **View only** suppresses keyboard, pointer, and clipboard changes sent to the server. Local navigation remains useful for inspecting a view-only session. Optional **Map Command to Control** helps with Windows/Linux shortcuts, and **Ctrl–Alt–Del** is an explicit toolbar action.
 

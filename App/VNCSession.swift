@@ -3,14 +3,14 @@ import Foundation
 
 final class VNCSession {
     var onConnected: ((String, Int, Int) -> Void)?
-    var onFrame: ((UnsafePointer<UInt8>, Int, Int, Int) -> Void)?
+    var onFrame: ((UnsafePointer<UInt8>, Int, Int, Int, FrameRegion) -> Void)?
     var onClipboard: ((String) -> Void)?
     var onDisconnected: ((String, Bool) -> Void)?
     private var client: OpaquePointer?
     private var keepAlive: VNCSession?
     private var closing = false
 
-    func start(host: String, port: UInt16, password: String, viewOnly: Bool, quality: Int32) -> Bool {
+    func start(host: String, port: UInt16, password: String, viewOnly: Bool, quality: Int32, compression: Int32 = 1) -> Bool {
         var callbacks = vncv_callbacks()
         callbacks.connected = { context, name, width, height in
             guard let context = context else { return }
@@ -18,10 +18,11 @@ final class VNCSession {
             let title = name.map { String(cString: $0) } ?? "Remote desktop"
             DispatchQueue.main.async { session.onConnected?(title, Int(width), Int(height)) }
         }
-        callbacks.frame = { context, bytes, width, height, stride, _, _, _, _ in
+        callbacks.frame = { context, bytes, width, height, stride, x, y, changedWidth, changedHeight in
             guard let context = context, let bytes = bytes else { return }
             let session = Unmanaged<VNCSession>.fromOpaque(context).takeUnretainedValue()
-            session.onFrame?(bytes, Int(width), Int(height), Int(stride))
+            session.onFrame?(bytes, Int(width), Int(height), Int(stride),
+                             FrameRegion(x:Int(x),y:Int(y),width:Int(changedWidth),height:Int(changedHeight)))
         }
         callbacks.clipboard = { context, text, length in
             guard let context = context, let text = text else { return }
@@ -42,7 +43,7 @@ final class VNCSession {
         client = handle
         keepAlive = self
         let started = host.withCString { hostBytes in password.withCString { passwordBytes in
-            vncv_start(handle, hostBytes, port, passwordBytes, viewOnly ? 1 : 0, quality) != 0
+            vncv_start_with_options(handle, hostBytes, port, passwordBytes, viewOnly ? 1 : 0, quality, compression) != 0
         }}
         if !started { dispose() }
         return started

@@ -5,8 +5,16 @@ import Darwin
 
 protocol PasswordStorage {
     func read(host: String, port: UInt16) throws -> String?
+    func readWithUserApproval(host: String, port: UInt16) throws -> String?
     func save(host: String, port: UInt16, password: String) throws
     func remove(host: String, port: UInt16) throws
+}
+
+extension PasswordStorage {
+    /// Test doubles and non-Keychain stores need no separate approval flow.
+    func readWithUserApproval(host: String, port: UInt16) throws -> String? {
+        try read(host: host, port: port)
+    }
 }
 
 enum PasswordStoreError: LocalizedError {
@@ -53,50 +61,95 @@ enum PasswordStoreError: LocalizedError {
 /// Synchronization is disabled; plaintext passwords are never written to defaults.
 final class PasswordStore: PasswordStorage {
     static let defaultService = "local.lantern.vnc.password"
+    private static let interactionLock = NSRecursiveLock()
     private let service: String
     private let allowAuthenticationUI: Bool
+    private let operations: KeychainOperations
 
-    init(service: String = PasswordStore.defaultService, allowAuthenticationUI: Bool = true) {
+    /// Injection keeps prompt-policy tests independent of real credentials/UI.
+    struct KeychainOperations {
+        var copyMatching = SecItemCopyMatching
+        var update = SecItemUpdate
+        var add = SecItemAdd
+        var delete = SecItemDelete
+        var getInteractionAllowed = SecKeychainGetUserInteractionAllowed
+        var setInteractionAllowed = SecKeychainSetUserInteractionAllowed
+    }
+
+    init(service: String = PasswordStore.defaultService, allowAuthenticationUI: Bool = false,
+         operations: KeychainOperations = KeychainOperations()) {
         self.service = service
         self.allowAuthenticationUI = allowAuthenticationUI
+        self.operations = operations
     }
 
     func read(host: String, port: UInt16) throws -> String? {
         var request = try query(host: host, port: port)
         request[kSecMatchLimit as String] = kSecMatchLimitOne
         request[kSecReturnData as String] = true
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(request as CFDictionary, &result)
-        if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess else { throw PasswordStoreError.keychain(status) }
-        guard let data = result as? Data, let password = String(data: data, encoding: .utf8) else {
-            throw PasswordStoreError.invalidStoredData
+        return try withAuthenticationPolicy {
+            var result: CFTypeRef?
+            let status = operations.copyMatching(request as CFDictionary, &result)
+            if status == errSecItemNotFound { return nil }
+            guard status == errSecSuccess else { throw PasswordStoreError.keychain(status) }
+            guard let data = result as? Data, let password = String(data: data, encoding: .utf8) else {
+                throw PasswordStoreError.invalidStoredData
+            }
+            return password
         }
-        return password
+    }
+
+    /// Only an explicit user action should call this. It uses the same item,
+    /// service, and ACL; it does not reset or migrate an inaccessible credential.
+    func readWithUserApproval(host: String, port: UInt16) throws -> String? {
+        try PasswordStore(service: service, allowAuthenticationUI: true, operations: operations)
+            .read(host: host, port: port)
     }
 
     func save(host: String, port: UInt16, password: String) throws {
         let request = try query(host: host, port: port)
         let attributes = [kSecValueData as String: Data(password.utf8)]
-        var status = SecItemUpdate(request as CFDictionary, attributes as CFDictionary)
-        if status == errSecItemNotFound {
-            var addition = request
-            addition[kSecValueData as String] = Data(password.utf8)
-            addition[kSecAttrLabel as String] = "Lantern VNC password"
-            status = SecItemAdd(addition as CFDictionary, nil)
-            if status == errSecDuplicateItem {
-                // Another caller may have inserted this exact endpoint meanwhile.
-                status = SecItemUpdate(request as CFDictionary, attributes as CFDictionary)
+        try withAuthenticationPolicy {
+            var status = operations.update(request as CFDictionary, attributes as CFDictionary)
+            if status == errSecItemNotFound {
+                var addition = request
+                addition[kSecValueData as String] = Data(password.utf8)
+                addition[kSecAttrLabel as String] = "Lantern VNC password"
+                status = operations.add(addition as CFDictionary, nil)
+                if status == errSecDuplicateItem {
+                    // Another caller may have inserted this exact endpoint meanwhile.
+                    status = operations.update(request as CFDictionary, attributes as CFDictionary)
+                }
             }
+            guard status == errSecSuccess else { throw PasswordStoreError.keychain(status) }
         }
-        guard status == errSecSuccess else { throw PasswordStoreError.keychain(status) }
     }
 
     func remove(host: String, port: UInt16) throws {
-        let status = SecItemDelete(try query(host: host, port: port) as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw PasswordStoreError.keychain(status)
+        let request = try query(host: host, port: port)
+        try withAuthenticationPolicy {
+            let status = operations.delete(request as CFDictionary)
+            guard status == errSecSuccess || status == errSecItemNotFound else {
+                throw PasswordStoreError.keychain(status)
+            }
         }
+    }
+
+    /// The classic keychain can ignore kSecUseAuthenticationUIFail. Its process-
+    /// local interaction switch is also enforced, with our operations serialized
+    /// so an explicitly approved read cannot race an automatic read/save/remove.
+    private func withAuthenticationPolicy<T>(_ operation: () throws -> T) throws -> T {
+        Self.interactionLock.lock()
+        defer { Self.interactionLock.unlock() }
+        var previous = DarwinBoolean(false)
+        let queried = operations.getInteractionAllowed(&previous)
+        guard queried == errSecSuccess else { throw PasswordStoreError.keychain(queried) }
+        let configured = operations.setInteractionAllowed(allowAuthenticationUI)
+        guard configured == errSecSuccess else { throw PasswordStoreError.keychain(configured) }
+        let result = Result { try operation() }
+        let restored = operations.setInteractionAllowed(previous.boolValue)
+        guard restored == errSecSuccess else { throw PasswordStoreError.keychain(restored) }
+        return try result.get()
     }
 
     private func query(host: String, port: UInt16) throws -> [String: Any] {

@@ -32,6 +32,12 @@ vncv_client *vncv_create(vncv_callbacks callbacks, void *context);
    into volatile process memory, then wiped after the handshake. */
 int vncv_start(vncv_client *client, const char *host, uint16_t port,
                const char *password, int view_only, int quality);
+/* Same lifecycle and quality rules. compression_level 0...9 is requested for
+   Tight/Zlib; it does not alter the negotiated pixel format or JPEG quality.
+   The compatibility entry point above uses compression level 1. */
+int vncv_start_with_options(vncv_client *client, const char *host, uint16_t port,
+                           const char *password, int view_only, int quality,
+                           int compression_level);
 /* Thread-safe, nonblocking; safe from a callback. Cancels connect/auth/read. */
 void vncv_stop(vncv_client *client);
 /* Joins an existing worker. Never call wait/destroy from a worker callback. */
@@ -39,7 +45,10 @@ void vncv_wait(vncv_client *client);
 void vncv_destroy(vncv_client *client);
 int vncv_is_running(vncv_client *client);
 
-/* Thread-safe queues: all RFB writes happen on the single worker. Return 1 if
+/* Thread-safe queues: all RFB writes happen on the single worker, including
+   when a partial framebuffer message is waiting for more network bytes.
+   Button-down/up positions are retained when later motion is coalesced.
+   Return 1 if
    queued, 0 if disconnected/stopping, out of memory, or the queue is full.
    Key codes are X11/RFB keysyms; pointer mask uses RFB buttons (1/2/4 etc.). */
 int vncv_key(vncv_client *client, uint32_t keysym, int down);

@@ -1,5 +1,6 @@
 #ifndef RFBCLIENT_H
 #define RFBCLIENT_H
+/* Modified 2026 for Lantern VNC: opt-in same-thread read wake extension. */
 
 /**
  * @defgroup libvncclient_api LibVNCClient API Reference
@@ -745,6 +746,19 @@ extern rfbBool errorMessageOnReadFailure;
 
 extern rfbBool ReadFromRFBServer(rfbClient* client, char *out, unsigned int n);
 extern rfbBool WriteToRFBServer(rfbClient* client, const char *buf, unsigned int n);
+/** Lantern VNC extension: optional same-reader-thread servicing while a
+ * partial server message waits for more bytes. The descriptor must be usable
+ * with select(); the callback must consume its wake notification and must not
+ * read the RFB stream or invoke another message parser. It may send client
+ * messages. FALSE aborts the pending read. The hook is borrowed, defaults to
+ * disabled, and must outlive its registration; NULL disables it. No rfbClient
+ * layout or behavior changes for consumers that do not register a hook. */
+typedef struct {
+  rfbSocket descriptor;
+  rfbBool (*service)(rfbClient* client);
+} rfbClientReadWakeHook;
+extern rfbBool rfbClientSetReadWakeHook(rfbClient* client,
+                                      const rfbClientReadWakeHook* hook);
 extern int FindFreeTcpPort(void);
 extern rfbSocket ListenAtTcpPort(int port);
 extern rfbSocket ListenAtTcpPortAndAddress(int port, const char *address);

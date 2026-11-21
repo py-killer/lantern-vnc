@@ -13,6 +13,8 @@ mkdir -p "$TEST_DIR/module-cache"
 xcrun swiftc -swift-version 5 -module-cache-path "$TEST_DIR/module-cache" \
   "$PROJECT_DIR/App/DeviceStore.swift" "$PROJECT_DIR/tests/test_device_store.swift" \
   -o "$TEST_DIR/test-devices"
+"$PROJECT_DIR/tests/run-connection-preferences-tests.sh"
+"$PROJECT_DIR/tests/run-frame-update-tests.sh"
 "$PROJECT_DIR/tests/run-network-discovery-tests.sh"
 if "$PROJECT_DIR/tests/run-password-tests.sh"; then
   echo 'PASS: isolated macOS Keychain checks.'
@@ -27,6 +29,7 @@ fi
 "$TEST_DIR/test-devices"
 if [[ "$mode" == --full ]]; then
   "$PROJECT_DIR/tests/run-display-tests.sh"
+  "$PROJECT_DIR/tests/run-performance-display-tests.sh"
   "$PROJECT_DIR/tests/run-app-ui-tests.sh"
   "$PROJECT_DIR/tests/run-connection-settings-tests.sh"
   "$PROJECT_DIR/tests/run-discovery-ui-tests.sh"

@@ -18,6 +18,10 @@ private enum AppLinks {
 
 final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldDelegate {
     private let defaults: UserDefaults
+    private let connectionPreferences: ConnectionPreferencesStore
+    private var applyingConnectionPreferences=false
+    private var displayedPreferencesEndpoint: String?
+    private var lastObservedZoom: DesktopZoomMode = .fit
     private let devices: DeviceStore
     private let passwordStore: PasswordStorage
     private var credentialEndpoint: String?
@@ -32,6 +36,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     private let password = NSSecureTextField(string: "")
     private let rememberPassword = NSButton(checkboxWithTitle:"Remember password",target:nil,action:nil)
     private let passwordHint = NSTextField(wrappingLabelWithString:"Uses macOS Keychain when you choose to remember it.")
+    private let approveSavedPassword = NSButton(title:"Use saved password…",target:nil,action:nil)
     private let findServers = NSButton(title:"Find…",target:nil,action:nil)
     private let connect = NSButton(title: "Connect", target: nil, action: nil)
     private let status = NSTextField(labelWithString: "Ready to connect")
@@ -70,6 +75,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
 
     init(viewer: Void = (), showWindow: Bool = true, preferences: UserDefaults = .standard, passwordStore: PasswordStorage = PasswordStore()) throws {
         defaults=preferences
+        connectionPreferences=ConnectionPreferencesStore(defaults:preferences)
         devices=DeviceStore(defaults:preferences)
         self.passwordStore=passwordStore
         desktop = try MetalDesktop(renderer: ())
@@ -155,9 +161,16 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         rememberPassword.toolTip = "Save in macOS Keychain after a successful connection. Uncheck to remove the saved password."
         passwordHint.font = .systemFont(ofSize:12); passwordHint.textColor = .secondaryLabelColor
         passwordHint.identifier = NSUserInterfaceItemIdentifier("passwordHint")
+        approveSavedPassword.bezelStyle = .rounded; approveSavedPassword.controlSize = .small
+        approveSavedPassword.isHidden=true
+        approveSavedPassword.identifier=NSUserInterfaceItemIdentifier("approveSavedPassword")
+        approveSavedPassword.toolTip="Optional: macOS may ask for your Mac login password. You can enter the VNC server password manually instead."
         let portField = field("Port",control:port)
-        quality.addItems(withTitles:["Balanced · fast LAN","Lossless · sharp text","Fast · lower bandwidth"])
+        quality.addItems(withTitles:["Balanced · fast LAN","Lossless · sharp text","Fast · lower bandwidth","Wi-Fi · high quality"])
         quality.font = .systemFont(ofSize:13)
+        quality.identifier = NSUserInterfaceItemIdentifier("pictureQuality")
+        quality.target=self; quality.action=#selector(pictureQualityChanged)
+        quality.toolTip="Wi-Fi requests more compression at the same JPEG quality as Balanced, using more server CPU. Lossless avoids JPEG artifacts. Changes apply to your next connection."
         let profileField = field("Picture quality",control:quality)
         connect.bezelStyle = .rounded; connect.controlSize = .large; connect.font = .systemFont(ofSize:14,weight:.semibold); connect.keyEquivalent = "\r"; connect.contentTintColor = .white; connect.bezelColor = .systemTeal
         connect.identifier = NSUserInterfaceItemIdentifier("connectButton")
@@ -165,7 +178,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         let help = NSTextField(wrappingLabelWithString: "No account or subscription needed. Passwords are never stored in device profiles.")
         help.font = .systemFont(ofSize:12); help.textColor = .secondaryLabelColor
         let bottom = label("Apple Silicon  ·  Open source",size:11,color:.secondaryLabelColor)
-        let fields = NSStackView(views:[header,deviceField,deviceButtons,title,hostField,portField,passwordField,rememberPassword,passwordHint,connect,profileField,viewOnly,clipboard,mapCommand,help,bottom])
+        let fields = NSStackView(views:[header,deviceField,deviceButtons,title,hostField,portField,passwordField,rememberPassword,passwordHint,approveSavedPassword,connect,profileField,viewOnly,clipboard,mapCommand,help,bottom])
         fields.orientation = .vertical; fields.alignment = .leading; fields.spacing = 14; fields.translatesAutoresizingMaskIntoConstraints = false
         let sidebarScroll = NSScrollView(); sidebarScroll.translatesAutoresizingMaskIntoConstraints = false
         sidebarScroll.drawsBackground = false; sidebarScroll.hasVerticalScroller = true; sidebarScroll.autohidesScrollers = true
@@ -173,7 +186,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         sidebarScroll.documentView = document; side.addSubview(sidebarScroll); document.addSubview(fields)
         NSLayoutConstraint.activate([sidebarScroll.leadingAnchor.constraint(equalTo:side.leadingAnchor),sidebarScroll.widthAnchor.constraint(equalToConstant:288),sidebarScroll.topAnchor.constraint(equalTo:side.topAnchor),sidebarScroll.bottomAnchor.constraint(equalTo:side.bottomAnchor),document.widthAnchor.constraint(equalTo:sidebarScroll.contentView.widthAnchor),fields.leadingAnchor.constraint(equalTo:document.leadingAnchor,constant:22),fields.trailingAnchor.constraint(equalTo:document.trailingAnchor,constant:-22),fields.topAnchor.constraint(equalTo:document.topAnchor,constant:24),fields.bottomAnchor.constraint(equalTo:document.bottomAnchor,constant:-24)])
         for child in [deviceField,hostField,portField,passwordField,passwordHint,profileField,connect,help] { child.widthAnchor.constraint(equalTo:fields.widthAnchor).isActive = true }
-        baseFields = [host,port,password,quality,rememberPassword,findServers]
+        baseFields = [host,port,password,quality,rememberPassword,approveSavedPassword,findServers]
 
         let main = NSView(); main.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(main)
         NSLayoutConstraint.activate([main.leadingAnchor.constraint(equalTo:side.trailingAnchor),main.trailingAnchor.constraint(equalTo:root.trailingAnchor),main.topAnchor.constraint(equalTo:root.topAnchor),main.bottomAnchor.constraint(equalTo:root.bottomAnchor)])
@@ -197,6 +210,8 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         hand.identifier=NSUserInterfaceItemIdentifier("panViewButton"); hand.isEnabled=false
         hand.toolTip="Move view: drag, scroll, or use arrow keys. Turn off Hand or press Esc to control the remote computer."
         sidebarToggle.bezelStyle = .texturedRounded; sidebarToggle.controlSize = .small
+        sidebarToggle.imagePosition = .imageLeading
+        sidebarToggle.font = .systemFont(ofSize:12)
         sidebarToggle.setButtonType(.toggle)
         sidebarToggle.target=self; sidebarToggle.action=#selector(toggleSidebar)
         sidebarToggle.identifier=NSUserInterfaceItemIdentifier("sidebarToggleButton")
@@ -229,6 +244,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     private func configureActions() {
         connect.target=self; connect.action=#selector(toggleConnection)
         rememberPassword.target=self; rememberPassword.action=#selector(rememberPasswordChanged)
+        approveSavedPassword.target=self;approveSavedPassword.action=#selector(requestSavedPasswordApproval)
         findServers.target=self; findServers.action=#selector(findNetworkServers)
         devicePicker.target=self; devicePicker.action=#selector(deviceSelected)
         saveDevice.target=self; saveDevice.action=#selector(saveCurrentDevice)
@@ -239,7 +255,14 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         desktop.onKey = { [weak self] key, down in self?.session?.key(key,down:down) }
         desktop.onPointer = { [weak self] x,y,mask in self?.session?.pointer(x:x,y:y,mask:mask) }
         desktop.onFocus = { [weak self] in self?.syncClipboard() }
-        desktop.onViewportChanged = { [weak self] in self?.updateViewportUI() }
+        desktop.onViewportChanged = { [weak self] in
+            guard let self=self else { return }
+            self.updateViewportUI()
+            if !self.applyingConnectionPreferences,self.lastObservedZoom != self.desktop.zoomMode {
+                self.lastObservedZoom=self.desktop.zoomMode
+                self.persistConnectionPreferences()
+            }
+        }
         devicePicker.nextKeyView = saveDevice; saveDevice.nextKeyView = removeDevice
         removeDevice.nextKeyView = host; host.nextKeyView = findServers; findServers.nextKeyView = port; port.nextKeyView = password
         password.nextKeyView = rememberPassword; rememberPassword.nextKeyView = quality; quality.nextKeyView = viewOnly; viewOnly.nextKeyView = clipboard
@@ -250,12 +273,46 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         port.stringValue = defaults.string(forKey:"port") ?? "5900"
         clipboard.state = defaults.bool(forKey:"clipboard") ? .on : .off
         mapCommand.state = defaults.object(forKey:"mapCommand") == nil || defaults.bool(forKey:"mapCommand") ? .on : .off
-        quality.selectItem(at:max(0,min(2,defaults.integer(forKey:"quality"))))
         desktop.mapCommandToControl = mapCommand.state == .on
         refreshDevicePicker()
         loadRememberedPassword()
-        zoom.selectItem(at:0); desktop.zoomMode = .automatic
+        migrateConnectionPreferences()
+        restoreConnectionPreferences()
         setSidebarHidden(defaults.bool(forKey:"sidebarHidden"),persist:false)
+    }
+    private func migrateConnectionPreferences() {
+        let marker="connectionPreferencesMigrated.v1"
+        guard !defaults.bool(forKey:marker) else { return }
+        if defaults.object(forKey:"quality") != nil {
+            let oldQuality=defaults.integer(forKey:"quality")
+            var endpoints=devices.devices.map { ($0.host,$0.port) }
+            if let endpoint=endpoint { endpoints.append(endpoint) }
+            for (host,port) in endpoints {
+                let saved=connectionPreferences.load(host:host,port:port,legacyQuality:oldQuality)
+                connectionPreferences.save(host:host,port:port,zoomMode:saved.zoomMode,qualityIndex:saved.qualityIndex)
+            }
+        }
+        defaults.set(true,forKey:marker)
+    }
+    private func restoreConnectionPreferences() {
+        applyingConnectionPreferences=true
+        defer { applyingConnectionPreferences=false }
+        let saved: ConnectionPreferences
+        displayedPreferencesEndpoint=endpointIdentity
+        if let (host,port)=endpoint { saved=connectionPreferences.load(host:host,port:port) }
+        else { saved=ConnectionPreferences(zoomMode:.fit,qualityIndex:3) }
+        quality.selectItem(at:saved.qualityIndex)
+        lastObservedZoom=saved.zoomMode
+        desktop.zoomMode=saved.zoomMode;desktop.updateCanvas();updateViewportUI()
+    }
+    private func persistConnectionPreferences() {
+        guard !applyingConnectionPreferences,displayedPreferencesEndpoint == endpointIdentity,
+              let (host,port)=endpoint else { return }
+        connectionPreferences.save(host:host,port:port,zoomMode:desktop.zoomMode,qualityIndex:max(0,min(3,quality.indexOfSelectedItem)))
+    }
+    @objc private func pictureQualityChanged() {
+        defaults.set(max(0,min(3,quality.indexOfSelectedItem)),forKey:"quality")
+        persistConnectionPreferences()
     }
     private var currentDevice: SavedDevice? {
         guard let number = UInt16(port.stringValue.trimmingCharacters(in:.whitespacesAndNewlines)) else { return nil }
@@ -299,21 +356,35 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     private var endpointIdentity: String? {
         endpoint.map { "\($0.0.lowercased().utf8.count):\($0.0.lowercased()):\($0.1)" }
     }
-    private func loadRememberedPassword() {
+    private func loadRememberedPassword(allowApproval:Bool=false) {
         guard session == nil else { return }
+        let enteredPassword=allowApproval ? password.stringValue : ""
         password.stringValue="";rememberPassword.state = .off;credentialEndpoint=endpointIdentity
+        approveSavedPassword.isHidden=true
         passwordHint.stringValue="Uses macOS Keychain when you choose to remember it."
         guard let (address,number)=endpoint else { return }
         do {
-            if let saved=try passwordStore.read(host:address,port:number) {
+            let saved:String?
+            if allowApproval { saved=try passwordStore.readWithUserApproval(host:address,port:number) }
+            else { saved=try passwordStore.read(host:address,port:number) }
+            if let saved=saved {
                 password.stringValue=saved;rememberPassword.state = .on
                 passwordHint.stringValue="Password loaded from macOS Keychain."
-            }
-        } catch { passwordHint.stringValue="Saved password unavailable. Enter one to connect, or try Keychain again." }
+            } else { password.stringValue=enteredPassword }
+        } catch {
+            password.stringValue=enteredPassword
+            approveSavedPassword.isHidden=false
+            passwordHint.stringValue="Saved password needs macOS approval. You can enter the VNC password instead."
+        }
+    }
+    @objc private func requestSavedPasswordApproval() {
+        guard session == nil else { return }
+        loadRememberedPassword(allowApproval:true)
+        window?.makeFirstResponder(password)
     }
     func controlTextDidChange(_ notification: Notification) {
         if credentialEndpoint != endpointIdentity {
-            password.stringValue=""; rememberPassword.state = .off; credentialEndpoint=nil; pendingAlias=nil
+            password.stringValue=""; rememberPassword.state = .off; credentialEndpoint=nil; pendingAlias=nil; approveSavedPassword.isHidden=true
             passwordHint.stringValue="Uses macOS Keychain when you choose to remember it."
         }
         refreshDevicePicker()
@@ -321,6 +392,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     func controlTextDidEndEditing(_ notification: Notification) {
         guard session == nil,credentialEndpoint != endpointIdentity else { return }
         loadRememberedPassword()
+        restoreConnectionPreferences()
     }
     @objc private func rememberPasswordChanged() {
         guard let (address,number)=endpoint else { rememberPassword.state = .off; return }
@@ -331,8 +403,8 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
                 try passwordStore.remove(host:address,port:number)
                 passwordHint.stringValue="Saved password removed. You can still connect without saving."
             } catch {
-                rememberPassword.state = .on
-                passwordHint.stringValue="Couldn’t remove the saved password. Check Keychain and try again."
+                rememberPassword.state = .off
+                passwordHint.stringValue="Password won’t be saved. The existing saved password couldn’t be removed."
                 showPasswordError("Couldn’t remove the saved password",error:error)
             }
         }
@@ -379,19 +451,19 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
             status.stringValue="Three devices saved · this connection is not saved"
             showError("Your list already has three devices. This server is selected for a one-off connection. Remove a saved device if you want to add it to the list.")
         }
-        loadRememberedPassword();refreshDevicePicker()
+        loadRememberedPassword();restoreConnectionPreferences();refreshDevicePicker()
         window?.makeFirstResponder(password)
     }
     @objc private func deviceSelected() {
         guard session == nil, let id = devicePicker.selectedItem?.representedObject as? String else { return }
         if id == "__add__" {
             pendingAlias=nil
-            host.stringValue = ""; port.stringValue = "5900"; loadRememberedPassword()
+            host.stringValue = ""; port.stringValue = "5900"; loadRememberedPassword(); restoreConnectionPreferences()
             status.stringValue = "New connection"
             refreshDevicePicker(); window?.makeFirstResponder(host)
         } else if let device = devices.devices.first(where: { $0.id == id }) {
             pendingAlias=nil
-            host.stringValue = device.host; port.stringValue = String(device.port); loadRememberedPassword()
+            host.stringValue = device.host; port.stringValue = String(device.port); loadRememberedPassword(); restoreConnectionPreferences()
             defaults.set(device.host,forKey:"server"); defaults.set(String(device.port),forKey:"port")
             status.stringValue = "Ready to connect"
             placeholderTitle.stringValue = "Your desktop, one connection away."
@@ -428,7 +500,8 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         guard session == nil, let device = currentDevice else { return }
         do { try passwordStore.remove(host:device.host,port:device.port) }
         catch { showPasswordError("Couldn’t remove this device’s saved password",error:error); return }
-        devices.remove(id:device.id); loadRememberedPassword(); refreshDevicePicker(); status.stringValue = "Device and its saved password removed"
+        connectionPreferences.remove(host:device.host,port:device.port)
+        devices.remove(id:device.id); loadRememberedPassword(); restoreConnectionPreferences(); refreshDevicePicker(); status.stringValue = "Device and its saved password removed"
     }
     @objc func toggleConnection() {
         if let session = session {
@@ -441,7 +514,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
             showError("Enter a valid server address and port (1–65535)."); return
         }
         host.stringValue = address; port.stringValue = String(number)
-        zoom.selectItem(at:0); desktop.zoomMode = .automatic; desktop.panMode=false; lastFrames = 0
+        restoreConnectionPreferences(); desktop.panMode=false; lastFrames = 0
         defaults.set(address,forKey:"server"); defaults.set(port.stringValue,forKey:"port"); defaults.set(quality.indexOfSelectedItem,forKey:"quality")
         let value = password.stringValue
         var passwordToRemember: String? = rememberPassword.state == .on ? value : nil
@@ -468,7 +541,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
             self.updateViewportUI()
             self.clipboardCount = -1; self.syncClipboard()
         }
-        next.onFrame = { [weak desktop] bytes,width,height,stride in desktop?.receive(bytes,width:width,height:height,stride:stride) }
+        next.onFrame = { [weak desktop] bytes,width,height,stride,dirty in desktop?.receive(bytes,width:width,height:height,stride:stride,dirty:dirty) }
         next.onClipboard = { [weak self] text in
             guard let self=self,self.clipboard.state == .on else { return }
             NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text,forType:.string); self.clipboardCount=NSPasteboard.general.changeCount
@@ -495,7 +568,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         status.stringValue="Connecting to \(address)…"
         placeholderTitle.stringValue="Connecting…"; placeholderDetail.stringValue="Opening a direct connection to \(address):\(number)."; placeholder.isHidden=false
         password.stringValue=""
-        if !next.start(host:address,port:number,password:value,viewOnly:viewOnly.state == .on,quality:[8,-1,5][quality.indexOfSelectedItem]) {
+        if !next.start(host:address,port:number,password:value,viewOnly:viewOnly.state == .on,quality:[8,-1,5,8][max(0,min(3,quality.indexOfSelectedItem))],compression:quality.indexOfSelectedItem == 3 ? 3 : 1) {
             passwordToRemember=nil
             session=nil; baseFields.forEach{$0.isEnabled=true}; updateDeviceControls()
             connect.title="Connect"; connect.keyEquivalent="\r"; progress.stopAnimation(nil)
@@ -575,6 +648,8 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     private func setSidebarHidden(_ hidden: Bool,persist: Bool) {
         sidebarHidden=hidden; sidebar.isHidden=hidden; sidebarWidth.constant=hidden ? 0 : 288
         sidebarToggle.state=hidden ? .off : .on
+        sidebarToggle.title=hidden ? "Show settings" : "Hide settings"
+        sidebarToggle.setAccessibilityLabel(sidebarToggle.title)
         sidebarToggle.toolTip="\(hidden ? "Show" : "Hide") connection sidebar (Control–Command–S)"
         if persist {
             defaults.set(hidden,forKey:"sidebarHidden")
@@ -627,8 +702,8 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     func windowDidResize(_ notification: Notification) { desktop.updateCanvas(); updateMetrics() }
     func windowDidEnterFullScreen(_ notification: Notification) { sidebarHiddenBeforeFullScreen=sidebarHidden; setSidebarHidden(true,persist:false) }
     func windowDidExitFullScreen(_ notification: Notification) { setSidebarHidden(sidebarHiddenBeforeFullScreen,persist:false) }
-    func windowWillClose(_ notification: Notification) { desktop.releaseKeys(); session?.stop(); NSApp.terminate(nil) }
-    func stop() { discoveryController?.dismiss(); desktop.releaseKeys(); session?.stop() }
+    func windowWillClose(_ notification: Notification) { persistConnectionPreferences(); desktop.releaseKeys(); session?.stop(); NSApp.terminate(nil) }
+    func stop() { persistConnectionPreferences(); discoveryController?.dismiss(); desktop.releaseKeys(); session?.stop() }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {

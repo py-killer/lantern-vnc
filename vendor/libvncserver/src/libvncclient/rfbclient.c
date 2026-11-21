@@ -2183,8 +2183,12 @@ HandleRFBServerMessage(rfbClient* client)
       /* rect.r.w=byte count */
       if (rect.encoding == rfbEncodingSupportedMessages) {
           int loop;
-          if (!ReadFromRFBServer(client, (char *)&client->supportedMessages, sz_rfbSupportedMessages))
+          /* Modified 2026 for Lantern VNC: read-wake callbacks may send input
+           * while this payload is fragmented. Expose only a complete bitset. */
+          rfbSupportedMessages messages;
+          if (!ReadFromRFBServer(client, (char *)&messages, sz_rfbSupportedMessages))
               return FALSE;
+          client->supportedMessages = messages;
 
           /* msgs is two sets of bit flags of supported messages client2server[] and server2client[] */
           /* currently ignored by this library */

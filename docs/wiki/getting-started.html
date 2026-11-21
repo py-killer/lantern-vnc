@@ -37,7 +37,7 @@
 <li>If macOS asks for local network access, allow it so Lantern can reach your server.</li>
 <li>Set the TCP port, usually <code>5900</code>, and choose <strong>Find…</strong> beside Server. If one server is found, it is selected automatically. Confirm or edit its alias and choose <strong>Save Computer</strong> to add it to your device list immediately. If several are found, select the one you want first. You can enter a known address manually instead. A server on display <code>:1</code> often uses <code>5901</code>; enter its actual TCP port, not the display number.</li>
 <li>Enter the password configured for VNC on the server and choose <strong>Connect</strong>. A Windows or macOS account password is not necessarily the VNC password. Classic VNC authentication uses the first eight password bytes. <strong>Remember password</strong> is off for a new endpoint; enable it only if you want macOS Keychain to save the password after a successful connection.</li>
-<li>Start with <strong>Auto (Readable)</strong>. If the image is larger than the window, use its visible scroll bars or turn on <strong>Hand</strong> to move the local view. Choose <strong>Fit to Window</strong> for a whole-desktop overview. Turn Hand off and click the remote image to send keyboard and pointer input.</li>
+<li>New server addresses/ports start with <strong>Fit to Window</strong> and <strong>Wi-Fi · high quality</strong>. Fit shows the whole desktop. If text is too small, choose <strong>Auto (Readable)</strong> or a larger zoom, then use visible scroll bars or <strong>Hand</strong> to move the local view. Turn Hand off and click the remote image to send keyboard and pointer input.</li>
 </ol>
 <p>If the connection fails, check the <a href="troubleshooting.html">troubleshooting guide</a>. Repeatedly trying a different password cannot fix an unreachable server or a blocked port.</p>
 <h2 id="find-a-local-server">Find a local server</h2>
@@ -46,10 +46,14 @@
 <h2 id="save-your-usual-devices">Save your usual devices</h2>
 <p>The finder saves a named device when you confirm its alias. Use <strong>Rename…</strong> for an existing saved device, or <strong>Save…</strong> for a manually entered connection. A successful connection also saves a device when a slot is available, using the alias from the picker or the server's desktop name for a new profile. Lantern can save up to three devices and keeps one session active at a time. Choose a saved device to restore its connection settings; use <strong>Remove</strong> to free a saved slot.</p>
 <p>Passwords are not saved in device profiles. If you enable <strong>Remember password</strong>, the password is saved separately in the classic macOS login Keychain after a successful connection and can be loaded for the same host and port. Keychain synchronization is disabled. Uncheck the box to delete that saved password; <strong>Remove</strong> deletes both the selected profile and its saved password. If Keychain access is denied or unavailable, enter the password manually. A full saved list does not prevent a one-off connection using the Server and Port fields.</p>
+<p>Startup, reconnect, and routine Keychain reads, saves, and deletions do not open a Mac-password approval dialog. When offered, <strong>Use saved password…</strong> is optional: only that explicit click may request your Mac login password to approve Keychain access. This is different from the remote VNC password. You can always enter the VNC password manually; Lantern does not fall back to plaintext storage or reset Keychain security.</p>
+<h2 id="keep-your-viewing-preferences">Keep your viewing preferences</h2>
+<p>Lantern remembers zoom mode—including a custom pinch scale—and picture preset for each host and port, including after restarting the app. Pan positions are not remembered. Picture changes apply on the next connection. On the first upgrade, existing devices inherit the previous global picture preset once; afterward their settings are independent.</p>
+<p><strong>Wi-Fi · high quality</strong> requests the same JPEG level as Balanced with moderate compression that may use more server CPU. Choose <strong>Lossless · sharp text</strong> when JPEG artifacts are unwanted; it still uses compressed transfer. Presets do not change the server's resolution, and no preset guarantees the fastest result on every network. See <a href="display-and-navigation.html">Display controls</a> for the exact settings.</p>
 <h2 id="before-using-clipboard-sharing">Before using clipboard sharing</h2>
 <p><strong>Share clipboard text</strong> is optional. When enabled, text can move between your Mac and the server. Leave it off if you do not want that transfer. <strong>View only</strong> suppresses keyboard, pointer, and clipboard changes sent to the server; the server can also independently restrict a connection to viewing.</p>
 <p>Choose <strong>Disconnect</strong> when finished. <strong>Command–K</strong> connects or disconnects, <strong>Control–Command–F</strong> toggles full screen, and <strong>Control–Command–S</strong> shows/hides the connection sidebar. See the <a href="display-and-navigation.html">display guide</a> for zoom and Hand controls.</p>
-<p>These controls are implemented in 1.1.0-preview.3. It remains a preview while physical display transitions and the manual hardware matrix are unverified.</p></article>
+<p>These controls are implemented in 1.1.0-preview.5. It remains a preview while physical display transitions and the manual hardware matrix are unverified.</p></article>
       <nav class="guide-paging" aria-label="More guides"><a href="index.html"><span>Previous guide</span><strong>Overview</strong></a><a class="next-guide" href="display-and-navigation.html"><span>Next guide</span><strong>Display &amp; navigation</strong></a></nav>
       <div class="page-actions"><a href="https://github.com/py-killer/lantern-vnc/edit/main/docs/wiki/Getting-Started.md">Improve this guide</a><a href="https://github.com/py-killer/lantern-vnc/blob/main/docs/wiki/Getting-Started.md">Read the Markdown</a><a href="https://github.com/py-killer/lantern-vnc/issues/new/choose">Share feedback</a></div>
     </main>
@@ -59,6 +63,7 @@
 <li><a href="#open-and-connect">Open and connect</a></li>
 <li><a href="#find-a-local-server">Find a local server</a></li>
 <li><a href="#save-your-usual-devices">Save your usual devices</a></li>
+<li><a href="#keep-your-viewing-preferences">Keep your viewing preferences</a></li>
 <li><a href="#before-using-clipboard-sharing">Before using clipboard sharing</a></li>
 </ul>
 </div>

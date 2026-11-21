@@ -35,10 +35,7 @@ final class MetalDesktop: MTKView, MTKViewDelegate {
     var currentViewport: DesktopViewport { viewport }
     var displayScale: Double { Double(viewport.displayScale) }
     var canPan: Bool { viewport.canPan }
-    var framesReceived: Int {
-        lock.lock(); defer { lock.unlock() }
-        return receivedFrameCount
-    }
+    var framesReceived: Int { frames.framesReceived }
     private var viewport = DesktopViewport()
     private weak var surface: DesktopSurface?
     private let horizontal = NSScroller(frame:NSRect(x:0,y:0,width:200,height:12))
@@ -50,16 +47,37 @@ final class MetalDesktop: MTKView, MTKViewDelegate {
     private var linearSampler: MTLSamplerState!
     private var nearestSampler: MTLSamplerState!
     private let lock = NSLock()
-    private var pendingFrame: (Data, Int, Int, Int)?
-    private var receivedFrameCount = 0
+    private let frames = FrameUpdateStore()
     private var displayNotificationQueued = false
     private final class TextureSlot {
+        let index: Int
         var texture: MTLTexture?
+        var state: FrameUpdateState?
         let available = DispatchSemaphore(value: 1)
+        init(index: Int) { self.index=index }
     }
-    private var slots = (0..<3).map { _ in TextureSlot() }
+    private var slots = (0..<3).map { TextureSlot(index:$0) }
     private var displayedSlot: TextureSlot?
     private var redrawAfterGPU = false
+    private(set) var textureUploadBytes=0
+    private(set) var fullTextureUploads=0
+    private(set) var partialTextureUploads=0
+#if LANTERN_TESTING
+    var testingPreferredSlot: Int?
+    func testingTextureSnapshot(slot: Int) -> (data:Data,state:FrameUpdateState)? {
+        guard slots.indices.contains(slot) else { return nil }
+        let entry=slots[slot]
+        guard entry.available.wait(timeout:.now()) == .success else { return nil }
+        defer { entry.available.signal() }
+        guard let texture=entry.texture,let state=entry.state else { return nil }
+        var data=Data(count:state.width*state.height*4)
+        data.withUnsafeMutableBytes { destination in
+            texture.getBytes(destination.baseAddress!,bytesPerRow:state.width*4,
+                             from:MTLRegionMake2D(0,0,state.width,state.height),mipmapLevel:0)
+        }
+        return (data,state)
+    }
+#endif
     private var pressed: [UInt16: UInt32] = [:]
     private var pointerMask: Int32 = 0
     private var lastPointer = (Int32(0), Int32(0))
@@ -215,12 +233,9 @@ final class MetalDesktop: MTKView, MTKViewDelegate {
         panBy(dx:horizontalAxis ? delta : 0,dy:horizontalAxis ? 0 : delta)
     }
 
-    func receive(_ bytes: UnsafePointer<UInt8>, width: Int, height: Int, stride: Int) {
-        guard width > 0, height > 0, stride == width*4, height <= 16384, width <= 16384 else { return }
-        let snapshot = Data(bytes:bytes,count:stride*height)
+    func receive(_ bytes: UnsafePointer<UInt8>, width: Int, height: Int, stride: Int, dirty: FrameRegion?=nil) {
+        guard frames.receive(bytes,width:width,height:height,stride:stride,dirty:dirty) else { return }
         lock.lock()
-        receivedFrameCount += 1
-        pendingFrame = (snapshot,width,height,receivedFrameCount)
         let notify = !displayNotificationQueued
         displayNotificationQueued = true
         lock.unlock()
@@ -229,10 +244,9 @@ final class MetalDesktop: MTKView, MTKViewDelegate {
             guard let self = self else { return }
             self.lock.lock()
             self.displayNotificationQueued = false
-            let incoming = self.pendingFrame
             self.lock.unlock()
-            guard let incoming = incoming else { return }
-            self.adoptFrameSize(width:incoming.1,height:incoming.2)
+            guard let incoming = self.frames.state else { return }
+            self.adoptFrameSize(width:incoming.width,height:incoming.height)
             self.needsDisplay = true
         }
     }
@@ -242,11 +256,12 @@ final class MetalDesktop: MTKView, MTKViewDelegate {
     }
     func clear() {
         releaseKeys()
-        lock.lock(); pendingFrame = nil; receivedFrameCount = 0; lock.unlock()
+        frames.clear()
         viewport.setRemoteSize(.zero)
-        slots = (0..<3).map { _ in TextureSlot() }
+        slots = (0..<3).map { TextureSlot(index:$0) }
         displayedSlot = nil
         redrawAfterGPU = false
+        textureUploadBytes=0;fullTextureUploads=0;partialTextureUploads=0
         dragPoint = nil
         updateCanvas()
     }
@@ -255,16 +270,21 @@ final class MetalDesktop: MTKView, MTKViewDelegate {
         needsDisplay = true
     }
     func draw(in view: MTKView) {
-        lock.lock(); let incoming = pendingFrame; lock.unlock()
+        let incoming = frames.state
         if let incoming = incoming,
-           viewport.remoteSize != CGSize(width:incoming.1,height:incoming.2) {
-            adoptFrameSize(width:incoming.1,height:incoming.2)
+           viewport.remoteSize != CGSize(width:incoming.width,height:incoming.height) {
+            adoptFrameSize(width:incoming.width,height:incoming.height)
             DispatchQueue.main.async { [weak self] in self?.needsDisplay = true }
             return
         }
+        let requiresUpload = incoming != nil && incoming != displayedSlot?.state
         var selected: TextureSlot?
-        if incoming != nil {
-            selected = slots.first { $0.available.wait(timeout:.now()) == .success }
+        if requiresUpload {
+            var candidates=slots
+#if LANTERN_TESTING
+            if let index=testingPreferredSlot { candidates=slots.filter { $0.index == index } }
+#endif
+            selected = candidates.first { $0.available.wait(timeout:.now()) == .success }
             if selected == nil { redrawAfterGPU = true; return }
         } else if let current = displayedSlot {
             guard current.available.wait(timeout:.now()) == .success else { redrawAfterGPU = true; return }
@@ -272,19 +292,25 @@ final class MetalDesktop: MTKView, MTKViewDelegate {
         }
         guard let drawable = currentDrawable, let pass = currentRenderPassDescriptor,
               let command = commandQueue.makeCommandBuffer() else { selected?.available.signal(); return }
-        if let (bytes,width,height,sequence) = incoming, let selected = selected {
+        if requiresUpload,let incoming=incoming,let selected=selected {
+            let width=incoming.width,height=incoming.height
             if selected.texture?.width != width || selected.texture?.height != height {
                 let description = MTLTextureDescriptor.texture2DDescriptor(pixelFormat:.bgra8Unorm,width:width,height:height,mipmapped:false)
                 description.storageMode = .shared; description.usage = .shaderRead
                 selected.texture = device?.makeTexture(descriptor:description)
+                selected.state=nil
             }
             guard let texture = selected.texture else { selected.available.signal(); return }
-            bytes.withUnsafeBytes { source in
-                if let base = source.baseAddress { texture.replace(region:MTLRegionMake2D(0,0,width,height),mipmapLevel:0,withBytes:base,bytesPerRow:width*4) }
+            let uploaded=frames.withUpdate(slot:selected.index,expectedGeneration:incoming.generation) { source,stride,region,state in
+                texture.replace(region:MTLRegionMake2D(region.x,region.y,region.width,region.height),
+                                mipmapLevel:0,withBytes:source,bytesPerRow:stride)
+                selected.state=state
+                textureUploadBytes += region.byteCount
+                if region.width == width && region.height == height { fullTextureUploads += 1 }
+                else { partialTextureUploads += 1 }
+                return true
             }
-            lock.lock()
-            if pendingFrame?.3 == sequence { pendingFrame = nil }
-            lock.unlock()
+            guard uploaded else { selected.available.signal();needsDisplay=true;return }
             displayedSlot = selected
         }
         guard let encoder = command.makeRenderCommandEncoder(descriptor:pass) else { selected?.available.signal(); return }
@@ -305,7 +331,7 @@ final class MetalDesktop: MTKView, MTKViewDelegate {
             selected?.available.signal()
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
-                self.lock.lock(); let pending = self.pendingFrame != nil; self.lock.unlock()
+                let pending=self.frames.state != self.displayedSlot?.state
                 if pending || self.redrawAfterGPU { self.redrawAfterGPU = false; self.needsDisplay = true }
             }
         }

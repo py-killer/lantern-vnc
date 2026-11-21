@@ -1,0 +1,22 @@
+{
+  "busySlotObservations" : 18,
+  "checks" : 102,
+  "coalescedCallbacks" : 30,
+  "fullPixelReadbacks" : 35,
+  "fullTextureUploads" : 4,
+  "gpu" : "Apple M5",
+  "macOS" : "Version 26.6 (Build 25G72)",
+  "manualHardwareMatrix" : "not run",
+  "partialTextureUploads" : 3,
+  "rapidSubmittedCallbacks" : 18,
+  "scope" : "owned offscreen window and generated pixels; no user credentials, global input, or LAN",
+  "slotsExercised" : [
+    0,
+    1,
+    2
+  ],
+  "steadyPatch" : "3x2 BGRA pixels",
+  "steadyUpdates" : 12,
+  "steadyUploadBytes" : 288,
+  "textureUploadBytesSinceClear" : 60080
+}

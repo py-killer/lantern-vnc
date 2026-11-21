@@ -23,7 +23,7 @@
       <div class="page-intro"><span class="eyebrow">LANTERN VNC · COMMUNITY WIKI</span><span class="preview-label">Preview documentation</span></div>
       <article class="guide-content"><h1 id="display-and-navigation">Display and navigation</h1>
 <p><a href="index.html">Wiki home</a> · <a href="getting-started.html">Getting started</a> · <a href="troubleshooting.html">Troubleshooting</a></p>
-<p>This guide describes the implemented <strong>1.1.0-preview.2</strong>. It replaces the 1.0 navigation model. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.</p>
+<p>This guide describes the implemented <strong>1.1.0-preview.5</strong>. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.</p>
 <p>The server supplies its desktop resolution. Lantern's zoom, window size, and local navigation change your view of that image; they never change the server's display resolution.</p>
 <h2 id="choose-a-viewing-mode">Choose a viewing mode</h2>
 <div class="table-scroll" role="region" aria-label="Reference table" tabindex="0"><table>
@@ -36,14 +36,14 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>Auto (Readable)</strong></td>
-<td>Uses <code>max(100%, min(Fit zoom, 200%))</code> in drawable/backing pixels. A large desktop stays at 100% rather than shrinking to fit.</td>
-<td>Start here for readable detail and navigate when the image exceeds the viewport.</td>
+<td><strong>Fit to Window</strong></td>
+<td>Default for a new host/port. Fits the complete image inside the viewport with its aspect ratio preserved. Different image/window shapes produce letterboxing.</td>
+<td>Get a whole-desktop overview; text can become small at high remote resolutions.</td>
 </tr>
 <tr>
-<td><strong>Fit to Window</strong></td>
-<td>Fits the complete image inside the viewport with its aspect ratio preserved. Different image/window shapes produce letterboxing.</td>
-<td>Get a whole-desktop overview; text can become small at high remote resolutions.</td>
+<td><strong>Auto (Readable)</strong></td>
+<td>Uses <code>max(100%, min(Fit zoom, 200%))</code> in drawable/backing pixels. A large desktop stays at 100% rather than shrinking to fit.</td>
+<td>Choose readable detail and navigate when the image exceeds the viewport.</td>
 </tr>
 <tr>
 <td><strong>50%, 75%, 100%, 125%, 150%, 200%</strong></td>
@@ -57,7 +57,8 @@
 </tr>
 </tbody>
 </table></div>
-<p>For example, a 5120 × 2880 desktop on a much smaller viewport starts at 100% in Auto and remains navigable. It is not forced into a tiny whole-image view. Fit to Window is the explicit choice when you want every edge visible at once.</p>
+<p>For example, a new 5120 × 2880 desktop starts fitted so every edge is visible. If the text is too small, choose Auto to view it at 100% or more and navigate with scroll bars or Hand. Explicit higher zoom also makes text larger.</p>
+<p>Lantern saves your selected mode, including custom pinch scale, separately for each host and TCP port and restores it after reconnecting or restarting the app. Pan positions are not remembered. Changing the endpoint restores that endpoint's settings, or Fit for a new one.</p>
 <p>On a Retina screen, Mac points and drawable/backing pixels are different units. At 100%, remote text can therefore look smaller than Mac interface text. macOS scaled display modes may also resample the final panel image. Use a higher explicit zoom when needed; Auto avoids downscaling but does not promise identical text sizes across machines.</p>
 <h2 id="reach-an-oversized-desktops-edges">Reach an oversized desktop's edges</h2>
 <p>Native horizontal and vertical scroll bars stay visible on the axes where the scaled image exceeds the viewport. Drag their thumbs to move around the desktop. If the whole image fits, that axis does not need a scroll bar.</p>
@@ -80,7 +81,7 @@
 <tbody>
 <tr>
 <td>Show/hide the connection sidebar</td>
-<td><strong>Control–Command–S</strong> or the sidebar button</td>
+<td><strong>Control–Command–S</strong> or <strong>Hide settings / Show settings</strong> beside the zoom menu</td>
 </tr>
 <tr>
 <td>Zoom in / out</td>
@@ -103,9 +104,43 @@
 <p>Entering full screen hides the connection sidebar; leaving full screen restores its previous state. The zoom popup and View menu provide the viewing controls without shortcuts.</p>
 <h2 id="how-the-viewport-works">How the viewport works</h2>
 <p>Metal renders a viewport the size of the visible local area. A separate pan offset selects which part of the remote image is visible. Rendering and remote pointer coordinates use the same geometry transform, so the image and click mapping follow the same zoom and pan state. The Metal drawable does not grow to the full dimensions of an oversized desktop.</p>
+<p>Preview 5 copies changed parts of the decoded image and uploads those regions to the GPU. Each display buffer accumulates the changes it still needs, so skipped draws do not leave stale areas. Full-screen updates still require full-image work. This preserves the decoded pixels, chosen picture preset, and server resolution; it does not change VNC network compression. Queued input can also be sent while a partial screen message waits for more data. Neither change guarantees a Wi-Fi or end-to-end speed increase.</p>
 <p>Click positions still need validation after a display change. If clicks land incorrectly, report the zoom mode, pan position, window size, and whether the issue followed a resize, reconnect, remote resolution change, or move between displays.</p>
 <h2 id="picture-quality-and-input-are-separate-controls">Picture quality and input are separate controls</h2>
-<p><strong>Balanced</strong>, <strong>Lossless</strong>, and <strong>Fast</strong> select picture quality before connecting. They do not change the server resolution or local zoom. Lossless avoids JPEG compression; it does not make text larger.</p>
+<p>Choose a picture preset before connecting. It is saved for that host and port, including across app restarts, and applies on the next connection. Existing devices inherit the former global picture preset once during upgrade; later changes remain independent.</p>
+<div class="table-scroll" role="region" aria-label="Reference table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Tight JPEG request</th>
+<th>Compression request</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Wi-Fi · high quality</strong></td>
+<td>Level 8, the same as Balanced</td>
+<td>3; default for a new endpoint</td>
+</tr>
+<tr>
+<td><strong>Balanced · fast LAN</strong></td>
+<td>Level 8</td>
+<td>1</td>
+</tr>
+<tr>
+<td><strong>Lossless · sharp text</strong></td>
+<td>Disabled</td>
+<td>1; transfer remains compressed</td>
+</tr>
+<tr>
+<td><strong>Fast · lower bandwidth</strong></td>
+<td>Level 5</td>
+<td>1</td>
+</tr>
+</tbody>
+</table></div>
+<p>Wi-Fi requests moderate extra compression that may reduce transferred bytes while using more server CPU. It does not guarantee the fastest result. These are fixed requests to the server, with no automatic adaptation. Compression levels apply to Tight/Zlib; the server may choose another supported encoding.</p>
+<p>JPEG levels are coarse protocol values from 0–9, not percentages. JPEG-enabled presets can affect text, especially in image-rich regions. Lossless requests exact decoded pixels by disabling JPEG; fractional local zoom or macOS display scaling may still soften their appearance. Picture presets change neither the server resolution nor the local zoom.</p>
 <p><strong>View only</strong> suppresses keyboard, pointer, and clipboard changes sent to the server. Local navigation remains useful for inspecting a view-only session. Optional <strong>Map Command to Control</strong> helps with Windows/Linux shortcuts, and <strong>Ctrl–Alt–Del</strong> is an explicit toolbar action.</p>
 <h2 id="preview-verification-limits">Preview verification limits</h2>
 <p>The controls above are implemented in the local preview candidate. Automated geometry/protocol checks and a synthetic native GPU harness cover different parts of the behavior; they do not prove every physical-display configuration. Physical 1× external/2× Retina switching, monitor disconnect/reconnect, macOS scaled modes, and the full manual resolution/window matrix remain unverified.</p>

@@ -1,0 +1,17 @@
+{
+  "connectionPreferenceCoverage" : "Fit\/Wi-Fi defaults, four quality profiles, Auto\/custom pinch, restart, per-server isolation, unfinished endpoint edits\/shutdown, legacy migration",
+  "globalInputEvents" : 0,
+  "gpu" : "Apple M5",
+  "macOS" : "Version 26.6 (Build 25G72)",
+  "networkConnections" : 0,
+  "preferenceIsolation" : "temporary UserDefaults suite",
+  "syntheticRemoteSize" : "5120x2880",
+  "uiChecks" : 3550,
+  "windowPresentation" : "owned, offscreen, non-key",
+  "windowSizes" : [
+    "860x540",
+    "1180x760",
+    "860x950",
+    "1600x560"
+  ]
+}

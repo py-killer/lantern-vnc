@@ -3,6 +3,54 @@ import Foundation
 import Security
 import Darwin
 
+private final class ApprovalFallbackStore: PasswordStorage {
+    var reads = 0
+    func read(host: String, port: UInt16) throws -> String? { reads += 1; return "synthetic-fallback" }
+    func save(host: String, port: UInt16, password: String) throws { }
+    func remove(host: String, port: UInt16) throws { }
+}
+
+private final class PromptPolicyProbe {
+    var allowed = true
+    var requireApproval = true
+    var observed: [(String, Bool, [String: Any])] = []
+    var sets: [Bool] = []
+    var getStatus = errSecSuccess
+    var setStatus = errSecSuccess
+    func operations() -> PasswordStore.KeychainOperations {
+        var operations = PasswordStore.KeychainOperations()
+        operations.getInteractionAllowed = { value in
+            value.pointee = DarwinBoolean(self.allowed)
+            return self.getStatus
+        }
+        operations.setInteractionAllowed = { enabled in
+            self.sets.append(enabled)
+            if self.setStatus == errSecSuccess { self.allowed = enabled }
+            return self.setStatus
+        }
+        operations.copyMatching = { query, result in
+            self.observed.append(("read", self.allowed, query as! [String: Any]))
+            // Deliberately ignores the query flag, just like legacy paths can.
+            if self.requireApproval && !self.allowed { return errSecInteractionNotAllowed }
+            result?.pointee = Data("synthetic-approved".utf8) as CFData
+            return errSecSuccess
+        }
+        operations.update = { query, _ in
+            self.observed.append(("save", self.allowed, query as! [String: Any]))
+            return self.requireApproval && !self.allowed ? errSecInteractionNotAllowed : errSecSuccess
+        }
+        operations.add = { query, _ in
+            self.observed.append(("add", self.allowed, query as! [String: Any]))
+            return self.requireApproval && !self.allowed ? errSecInteractionNotAllowed : errSecSuccess
+        }
+        operations.delete = { query in
+            self.observed.append(("remove", self.allowed, query as! [String: Any]))
+            return self.requireApproval && !self.allowed ? errSecInteractionNotAllowed : errSecSuccess
+        }
+        return operations
+    }
+}
+
 @main
 struct PasswordStoreTests {
     private static var checks = 0
@@ -21,6 +69,7 @@ struct PasswordStoreTests {
     static func main() {
         do {
             try validationTests()
+            try promptPolicyTests()
             print("PASS: \(checks) endpoint/configuration/error privacy checks; no Keychain access yet.")
             try integrationTests()
             print("PASS: \(checks) total password-store checks, including isolated login-Keychain CRUD and cleanup.")
@@ -38,6 +87,54 @@ struct PasswordStoreTests {
             print("FAIL: password-store checks did not complete (\(type(of: error))).")
             exit(1)
         }
+    }
+
+    private static func promptPolicyTests() throws {
+        let service = "local.lantern.vnc.policy-tests.\(UUID().uuidString)"
+        let probe = PromptPolicyProbe()
+        let store = PasswordStore(service: service, operations: probe.operations())
+        func denied(_ operation: () throws -> Void) {
+            checks += 1
+            do { try operation(); fatalError("Password store policy test: automatic operation must not request approval") }
+            catch PasswordStoreError.keychain(let status) {
+                expect(status == errSecInteractionNotAllowed, "inaccessible item reports interaction-not-allowed")
+            } catch { fatalError("Password store policy test: unexpected error") }
+        }
+        denied { _ = try store.read(host: "example.invalid", port: 5900) }
+        expect(probe.observed.count == 1 && probe.observed[0].1 == false, "default read disables process-local legacy interaction")
+        expect(probe.allowed && probe.sets == [false, true], "failed default read restores prior process policy")
+        let first = probe.observed[0].2
+        expect(first[kSecUseAuthenticationUI as String] as? String == kSecUseAuthenticationUIFail as String, "default query also requests no authentication UI")
+        denied { try store.save(host: "example.invalid", port: 5900, password: "synthetic-write") }
+        denied { try store.remove(host: "example.invalid", port: 5900) }
+        expect(probe.observed.map { $0.0 } == ["read", "save", "remove"], "denied read/save/remove neither adds nor migrates an item")
+        expect(probe.observed.allSatisfy { !$0.1 }, "every automatic operation is noninteractive")
+        expect(probe.allowed, "automatic errors leave prior interaction state restored")
+        let approved: PasswordStorage = store
+        expect(try approved.readWithUserApproval(host: "EXAMPLE.INVALID", port: 5900) == "synthetic-approved", "explicit approval dispatches to concrete approved read")
+        let explicit = probe.observed.last!
+        expect(explicit.0 == "read" && explicit.1, "only explicit approval enables process interaction for a read")
+        expect(explicit.2[kSecUseAuthenticationUI as String] as? String == kSecUseAuthenticationUIAllow as String, "explicit approval query permits authentication UI")
+        expect(explicit.2[kSecAttrService as String] as? String == first[kSecAttrService as String] as? String &&
+               explicit.2[kSecAttrAccount as String] as? String == first[kSecAttrAccount as String] as? String,
+               "approved read keeps the exact service/account namespace")
+        expect(explicit.2[kSecAttrAccess as String] == nil && explicit.2[kSecAttrAccessControl as String] == nil,
+               "approval never rewrites item ACLs")
+        probe.allowed = false
+        let explicitlyConfigured = PasswordStore(service: service, allowAuthenticationUI: true, operations: probe.operations())
+        expect(try explicitlyConfigured.read(host: "example.invalid", port: 5900) == "synthetic-approved", "explicit allowAuthenticationUI initializer remains supported")
+        expect(!probe.allowed, "approved operation restores a previously disabled process policy")
+        let fallback = ApprovalFallbackStore()
+        let fake: PasswordStorage = fallback
+        expect(try fake.readWithUserApproval(host: "example.invalid", port: 5900) == "synthetic-fallback" && fallback.reads == 1,
+               "protocol default approval path delegates to fake read")
+        let unavailable = PromptPolicyProbe()
+        unavailable.getStatus = errSecNotAvailable
+        do {
+            _ = try PasswordStore(service: service, operations: unavailable.operations()).read(host: "example.invalid", port: 5900)
+            fatalError("Password store policy test: unavailable guard must stop before reading")
+        } catch PasswordStoreError.keychain(let status) { expect(status == errSecNotAvailable, "policy guard error is surfaced") }
+        expect(unavailable.observed.isEmpty, "failed interaction guard never touches an item")
     }
 
     private static func validationTests() throws {

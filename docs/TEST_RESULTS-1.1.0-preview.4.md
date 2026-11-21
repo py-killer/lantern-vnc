@@ -1,0 +1,16 @@
+# Preview 4 validation — 21 November 2026
+
+- 92 pure per-endpoint preference checks: Fit+Wi-Fi defaults, host/port isolation, relaunch, legacy quality fallback, corrupt entries, custom zoom, bounds and rejection of non-finite values. No network/Keychain access.
+- 3,550 native controller checks: actual Fit/Wi-Fi startup, custom pinch and quality persistence, recreated controllers, server switching, unfinished endpoint edits, legacy migration, and labelled Hide settings / Show settings controls at four window shapes. Collapsing settings expands the viewport by 288 points. Owned offscreen windows, fake credential storage, no global input.
+- 106 connection-setting checks: authentication/alias/password regressions plus a real owned mock connection retaining chosen 75%/Lossless settings. Automatic startup/reconnect never uses the interactive approval API. Explicit approval cancellation preserves manual entry; unchecking Remember stays off even when deleting an inaccessible old item fails. Independent server proof of 3 accepted authentication sessions and 1 rejected attempt.
+- 74 password-store checks, including isolated UUID-scoped real login-Keychain CRUD, UTF-8, endpoint isolation, and cleanup with authentication UI disabled. Injected operations prove the process-local interaction policy is disabled and restored for automatic reads/saves/deletions; explicit approval is opt-in. No existing user credentials or ACLs were read or changed by these tests.
+- 75 protocol sessions under AddressSanitizer: q8/c1 legacy, q8/c3 Wi-Fi, JPEG-off Tight/c3, valid compression bounds, invalid bound rejection, real Tight JPEG decoding, resize/CopyRect, input, cancellation, disconnect and authentication. No ASan findings.
+- Strict C build and Swift type checks passed. Renderer/viewport implementation and classic login-Keychain storage location remain unchanged; this preview adds the silent access policy and explicit approval path.
+
+Live Preview3 validation also restored the existing alias and Keychain password after relaunch, then reconnected to the user's server. The assistant did not read or enter the password. Private server addresses and aliases are omitted here.
+
+Live Preview4 build 6 opened without an automatic Keychain authentication dialog, preserved the existing alias and Fit mode, and connected to the user's 5120×2880 server using manual password entry. With settings collapsed, the desktop remained connected in Fit mode and the visible Show settings action remained available. Access to the pre-existing Keychain item still required optional macOS approval, so saved-password restoration in this updated build is not claimed as passed.
+
+The new Wi-Fi option requests compression level3 instead of1 while retaining the same coarse JPEG quality8 as Balanced. This is protocol correctness evidence, not a measured speed, bandwidth, latency or JPEG-percentage claim. Server encoding/mapping and CPU/network conditions affect results. Lossless remains compressed and avoids JPEG artifacts. Settings apply on the next connection and are stored per host/port; pan position is not saved.
+
+Physical external-display transitions and notarization remain pending. This is an ad hoc signed preview.

@@ -12,7 +12,7 @@ The supplied arm64 app requires an Apple Silicon Mac and macOS 13 or later. It c
 
 ## How many devices can I save?
 
-Up to three named device profiles, with one remote session active at a time. Profiles contain a name, host, and port. A new profile can use your discovery alias or the server's desktop name; use **Rename…** to change it. Passwords are kept separately in macOS Keychain only if you opt in. You can still enter a one-off connection when all saved slots are occupied.
+Up to three named device profiles, with one remote session active at a time. Profiles contain a name, host, and port. In Find, confirm an alias with **Save Computer** to save the profile immediately; this does not connect or save a password. A new profile saved after connecting can use the server's desktop name. Use **Rename…** to change its name. Passwords are kept separately in macOS Keychain only if you opt in. You can still enter a one-off connection when all saved slots are occupied.
 
 ## Can I find a server without checking my router?
 
@@ -22,7 +22,30 @@ It does not search VPN interfaces, IPv6, Bonjour, public IPv4 networks, or every
 
 ## Why does 100% look small on my Retina screen?
 
-It maps remote pixels to drawable/backing pixels rather than treating each remote pixel as a full Mac point. The final appearance also depends on macOS display scaling. In 1.1.0-preview.3, Auto (Readable) avoids shrinking below 100%; choose 125–200% for larger text and use scroll bars or Hand to navigate. Fit to Window gives a whole-desktop overview. None of these controls changes the remote operating system's resolution. See [Display and navigation](Display-and-Navigation.md).
+In 1.1.0-preview.5, a new endpoint starts in **Fit to Window**, which shows the whole desktop but can make text tiny on a 5K server. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use scroll bars or Hand to navigate.
+
+At 100%, one remote pixel maps to one drawable/backing pixel, rather than one Mac point. The final appearance also depends on macOS display scaling. These controls change only the local view, not the remote resolution or the number of remote pixels requested. See [Display and navigation](Display-and-Navigation.md).
+
+## Which picture preset should I use on Wi-Fi?
+
+New endpoints default to **Wi-Fi · high quality**. It requests the same Tight JPEG quality as Balanced, with a higher compression level for non-JPEG data. More compression can use more server CPU; it is not a guarantee of faster updates.
+
+| Preset | Requested Tight JPEG level | Compression level |
+| --- | --- | --- |
+| Wi-Fi · high quality | 8 | 3 |
+| Balanced | 8 | 1 |
+| Lossless | JPEG disabled | 1 |
+| Fast | 5 | 1 |
+
+JPEG levels are protocol settings, not percentages; the server decides how to encode each rectangle. JPEG-enabled presets do not guarantee lossless text. **Lossless** retains compression while requesting exact pixels without JPEG; fractional local zoom can still soften their displayed appearance. Picture changes apply on the next connection. Lantern does not adapt the preset automatically.
+
+## Does Preview 5 change picture quality or reduce network traffic?
+
+Its dirty-region optimization reduces local CPU copying and GPU texture updates for small changes. It preserves the decoded pixels, picture preset, and server resolution. It does not change the requested VNC encodings or compression levels, so this local optimization makes no claim of smaller network transfers. Queued input can be serviced while a fragmented screen update waits for more bytes; network and server delays can still dominate. The recorded copy benchmark measures local CPU work, not Wi-Fi or end-to-end performance.
+
+## Does Lantern remember zoom and picture settings?
+
+Yes. Fit, Auto, an explicit percentage, or custom pinch zoom and the picture preset are saved per host and TCP port, including across app restarts. Pan positions are not remembered. Changing the host or port selects a different endpoint's preferences. Upgrading imports the old global picture setting once for existing saved devices; a new endpoint uses Fit and Wi-Fi · high quality.
 
 ## Why does scrolling move the remote app instead of my view?
 
@@ -30,7 +53,7 @@ With Hand off, wheel/trackpad scrolling is sent to the remote computer. Turn on 
 
 ## Is the new navigation release fully verified?
 
-1.1.0-preview.3 is an early-access release with the new controls implemented. Physical 1× external/2× Retina transitions, monitor disconnect/reconnect, and the complete manual hardware matrix remain unverified. Read the [release checklist](../RELEASE_CHECKLIST.md) before treating it as a stable release.
+1.1.0-preview.5 is an early-access release with the new controls implemented. Physical 1× external/2× Retina transitions, monitor disconnect/reconnect, and the complete manual hardware matrix remain unverified. Read the [release checklist](../RELEASE_CHECKLIST.md) before treating it as a stable release.
 
 ## Does resizing Lantern change the remote resolution?
 
@@ -45,6 +68,10 @@ Not by this build. Use a trusted LAN or a VPN/SSH tunnel that you establish sepa
 It has no account, analytics, licensing, or cloud-relay service. Device settings are stored locally. **Remember password** is off for a new host/port and saves only after a successful connection, using the classic macOS login Keychain with synchronization disabled. Plaintext passwords are never saved in preferences or profiles, or automatically included in feedback exports. Review your own notes before sharing them. This does not promise exclusion from every backup. Uncheck the box to remove that endpoint's saved password; removing its profile also deletes the password. Keychain failures leave manual entry available.
 
 Optional clipboard sharing deliberately transfers text between your Mac and the selected server; leave it disabled if you do not want that transfer. **Find…** makes bounded connections on your chosen local network and port only when requested.
+
+## Why is there a Use saved password… button?
+
+It appears when a saved password is unavailable through silent Keychain access. Startup, automatic reconnect, and routine password saves/deletions do not open a Mac-password approval dialog. Only an explicit click on **Use saved password…** may ask for your Mac login password to approve Keychain access; this is not the remote VNC password. The button is optional. Enter the VNC password manually instead if you prefer. Lantern keeps the existing storage protections, with no plaintext fallback or Keychain reset.
 
 ## Does it support file transfer, audio, printing, or multiple sessions?
 

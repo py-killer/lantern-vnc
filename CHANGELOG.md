@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.0-preview.5 — 2026-11-21
+
+- Copy decoded dirty regions into one owned image and update only the changed texture regions. Keep independent accumulated changes for each display buffer, with generation checks around resize and clear. The production upload path avoids an extra packed-image snapshot.
+- Service queued input on the existing connection thread while a partial server message waits for more bytes. Stage capability flags until their complete message arrives, so input does not use a partly received capability set.
+- Preserve decoded pixel quality, picture presets, Fit defaults, per-endpoint settings, and the server's resolution. These changes reduce local copying and improve input servicing; they do not change VNC wire compression or guarantee Wi-Fi speed.
+- Add seeded pixel-oracle, stale-buffer, immutable-snapshot, direct-upload, resize, and concurrency tests, plus CPU copy measurements at 5K. Extend owned mock/GPU tests for fragmented messages and dirty updates. CPU measurements are not network, GPU, or end-to-end benchmarks; see the versioned test report for observed results.
+- Remain an ad hoc signed preview. Physical external-display transitions, the full manual hardware matrix, Developer ID signing, and Apple notarization are still pending.
+
+## 1.1.0-preview.4 — 2026-11-21
+
+- Label the sidebar toolbar action **Hide settings / Show settings** so it is easier to find. Collapsing it expands the remote desktop; the button and Control–Command–S restore it.
+- Start new endpoints in **Fit to Window** with **Wi-Fi · high quality** selected. Auto, explicit zoom, pinch, and Hand remain available when fitted text is too small.
+- Remember zoom mode/custom scale and picture preset separately for each host and port across restarts. Pan positions are not restored. Migrate the previous global picture preset once for existing devices, then keep endpoint settings independent.
+- Add the Wi-Fi preset: request Tight JPEG level 8, matching Balanced, with moderate compression level 3 instead of 1. This trades potential server CPU work for smaller transfers; it is not adaptive and does not guarantee a speed increase. Balanced, Lossless, and Fast keep their previous settings. Picture changes apply on the next connection.
+- Preserve lossless compressed transfer with JPEG disabled. JPEG-enabled presets can affect text; coarse quality levels are not percentages.
+- Keep automatic Keychain reads, saves, and deletions silent, including startup and reconnect. If access needs approval, offer **Use saved password…** as an explicit optional action that may request Mac login approval. Manual VNC password entry remains available, with no plaintext fallback or Keychain security reset.
+- Extend the protocol suite with compression/JPEG negotiation and an embedded Tight JPEG decoding fixture. A local AddressSanitizer run passed 75 repeated sessions, including existing authentication, cancellation, input, and cleanup cases. This is correctness evidence, not a performance benchmark.
+- Remain a preview: physical external-display transitions, the full manual hardware matrix, Developer ID signing, and Apple notarization are pending.
+
 ## 1.1.0-preview.3 — 2026-11-21
 
 - Add **Find…** beside Server to search the selected VNC port on private IPv4 Wi-Fi/Ethernet networks. Search is bounded, cancellable, and confirms RFB greetings without authentication. Broader subnets use the local `/24` neighborhood; VPNs, IPv6, Bonjour, and port sweeps remain outside discovery.

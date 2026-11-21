@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Small local RFB 3.8 server for integration tests and visual QA. No real hosts."""
 import argparse
+import base64
 import ctypes
 import json
 from pathlib import Path
@@ -10,6 +11,19 @@ import struct
 import threading
 import time
 import zlib
+
+
+# Created offline with libjpeg-turbo: 4x3 RGB, quality 95, 4:4:4 sampling.
+# Each row is red/green/blue/white; JPEG decoding permits a small tolerance.
+# Runtime needs only the Python standard library, never Pillow or an encoder.
+JPEG_FIXTURE = base64.b64decode(
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIBAQECAgICAgQDAgICAgUEBAMEBgUG"
+    "BgYFBgYGBwkIBgcJBwYGCAsICQoKCgoKBggLDAsKDAkKCgr/2wBDAQICAgICAgUDAwUKBwYH"
+    "CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgr/wAAR"
+    "CAADAAQDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACP/EABsQAAAHAQAAAAAAAAAA"
+    "AAAAAAAEBgcKOHe2/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAH/xAAcEQABBAMBAAAAAAAAAAAA"
+    "AAAFAAQGtTY3dHX/2gAMAwEAAhEDEQA/AH7Haqs4WmEeMTAAtVRbmeXJRQjnkq9oxZOV/9k="
+)
 
 
 def read_exact(sock, length):
@@ -60,13 +74,7 @@ def vnc_response(challenge, password):
     return output.raw
 
 
-def tight_basic(image):
-    rgb = bytearray()
-    for index in range(0, len(image), 4):
-        rgb.extend((image[index + 2], image[index + 1], image[index]))
-    encoder = zlib.compressobj()
-    compressed = encoder.compress(bytes(rgb)) + encoder.flush(zlib.Z_SYNC_FLUSH)
-    length = len(compressed)
+def tight_length(length):
     compact = bytearray()
     for _ in range(2):
         if length < 128:
@@ -76,8 +84,22 @@ def tight_basic(image):
         length >>= 7
     else:
         compact.append(length)
+    return bytes(compact)
+
+
+def tight_basic(image):
+    rgb = bytearray()
+    for index in range(0, len(image), 4):
+        rgb.extend((image[index + 2], image[index + 1], image[index]))
+    encoder = zlib.compressobj()
+    compressed = encoder.compress(bytes(rgb)) + encoder.flush(zlib.Z_SYNC_FLUSH)
     # Reset zlib stream0, basic compression, no palette/gradient filter.
-    return b'\x01' + bytes(compact) + compressed
+    return b'\x01' + tight_length(len(compressed)) + compressed
+
+
+def tight_jpeg():
+    # Tight's JPEG subencoding is 0x9 in the control byte's high nibble.
+    return b'\x90' + tight_length(len(JPEG_FIXTURE)) + JPEG_FIXTURE
 
 
 # Public-domain 5x7 pixel alphabet used only by the test server.
@@ -195,6 +217,9 @@ class Handler(socketserver.BaseRequestHandler):
         read_exact(sock, 1)
         if mode == "interactive":
             width, height, image = desktop()
+        elif mode.startswith("slow-"):
+            width, height = (4096, 2) if mode == "slow-large" else (4, 3)
+            image = pixels(width, height, (25, 50, 75))
         else:
             width, height = 4, 3
             image = (pixel(255, 0, 0) + pixel(0, 255, 0) + pixel(0, 0, 255) + pixel(255, 255, 255)) * 3
@@ -202,6 +227,7 @@ class Handler(socketserver.BaseRequestHandler):
         pixel_format = struct.pack("!BBBBHHHBBB3x", 32, 24, 0, 1, 255, 255, 255, 16, 8, 0)
         sock.sendall(struct.pack("!HH", width, height) + pixel_format + struct.pack("!I", len(name)) + name)
         stage = 0
+        slow_pending = threading.Event()
         while True:
             message = read_exact(sock, 1)[0]
             if message == 0:
@@ -220,6 +246,9 @@ class Handler(socketserver.BaseRequestHandler):
                 elif stage == 0:
                     if mode == 'tight':
                         sock.sendall(update(rect(0, 0, width, height, 7, tight_basic(image))))
+                    elif mode == 'jpeg':
+                        sock.sendall(update(rect(0, 0, width, height, 7, tight_jpeg())))
+                        self.server.log(self.connection_id, "jpeg-sent", length=len(JPEG_FIXTURE), width=width, height=height)
                     else:
                         sock.sendall(update(rect(0, 0, width, height, 0, image)))
                     clipboard = b"Remote clipboard caf\xe9"
@@ -227,6 +256,40 @@ class Handler(socketserver.BaseRequestHandler):
                     stage += 1
                     if mode == "drop":
                         return
+                elif mode.startswith("slow-") and stage == 1:
+                    image = pixels(width, height, (80, 90, 100))
+                    if mode == "slow-capabilities":
+                        # The first capability byte clears support for input.
+                        # It must not take effect until all 64 bytes arrive.
+                        # Include a normal rectangle after it for frame parity.
+                        capabilities = b'\0' + b'\xff' * 63
+                        packet = update(rect(0, 0, 64, 0, -131071, capabilities),
+                                        rect(0, 0, width, height, 0, image))
+                    else:
+                        packet = update(rect(0, 0, width, height, 0, image))
+                    # The server's reader keeps accepting input while another
+                    # thread withholds the rest of this framebuffer payload.
+                    # 4x3 exercises LibVNCClient's buffered read branch; 4096x2
+                    # requires its direct large-payload branch (>8192 bytes).
+                    slow_pending.set()
+                    sock.sendall(packet[:20])
+                    self.server.log(self.connection_id, "slow-update-started", at=time.monotonic())
+                    def finish_slow(packet=packet, drop=mode == "slow-drop"):
+                        time.sleep(0.9)
+                        slow_pending.clear()
+                        self.server.log(self.connection_id, "slow-update-release", at=time.monotonic())
+                        try:
+                            if drop:
+                                sock.shutdown(socket.SHUT_RDWR)
+                            else:
+                                sock.sendall(packet[20:])
+                                self.server.log(self.connection_id, "slow-update-complete", at=time.monotonic())
+                        except OSError:
+                            self.server.log(self.connection_id, "slow-update-aborted")
+                    threading.Thread(target=finish_slow, daemon=True).start()
+                    stage += 1
+                elif mode.startswith("slow-"):
+                    pass
                 elif mode == "interactive":
                     time.sleep(0.2)
                     sock.sendall(update())
@@ -243,10 +306,12 @@ class Handler(socketserver.BaseRequestHandler):
                     stage += 1
             elif message == 4:
                 down, key = struct.unpack("!B2xI", read_exact(sock, 7))
-                self.server.log(self.connection_id, "key", down=down, key=key)
+                self.server.log(self.connection_id, "key", down=down, key=key,
+                                during_slow=slow_pending.is_set(), at=time.monotonic())
             elif message == 5:
                 mask, x, y = struct.unpack("!BHH", read_exact(sock, 5))
-                self.server.log(self.connection_id, "pointer", mask=mask, x=x, y=y)
+                self.server.log(self.connection_id, "pointer", mask=mask, x=x, y=y,
+                                during_slow=slow_pending.is_set(), at=time.monotonic())
             elif message == 6:
                 length = struct.unpack("!3xI", read_exact(sock, 7))[0]
                 if length > 1024 * 1024:
@@ -260,7 +325,8 @@ class Handler(socketserver.BaseRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=5901)
-    parser.add_argument("--scenario", choices=("frames", "tight", "password", "auth-fail", "stall", "oversize", "drop", "interactive"), default="frames")
+    parser.add_argument("--scenario", choices=("frames", "tight", "jpeg", "password", "auth-fail", "stall", "oversize", "drop", "interactive",
+                        "slow-small", "slow-large", "slow-capabilities", "slow-view-only", "slow-cancel", "slow-drop"), default="frames")
     parser.add_argument("--interactive", action="store_true")
     parser.add_argument("--info", type=Path)
     parser.add_argument("--events", type=Path)

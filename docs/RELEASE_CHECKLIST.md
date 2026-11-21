@@ -95,9 +95,10 @@ The listed controls are implemented in the preview candidate. Record their obser
 | Remember password off for a new endpoint | Connection succeeds without a Keychain write; no plaintext password in preferences, profiles, or feedback. | Not run |
 | Opt in with correct/incorrect password, cancellation, and connection failure | Only a successful connection saves the password for that host/port. Failed authentication and cancellation do not save it. | Not run |
 | Reconnect, change host/port, switch device | Correct endpoint's password loads when available; previous endpoint's credential is cleared before another endpoint is used. | Not run |
-| Uncheck Remember password; remove a device | Endpoint's Keychain item is deleted; profile removal also deletes its password. A failed deletion is reported without claiming success. | Not run |
+| Uncheck Remember password | Request noninteractive deletion of the endpoint's saved password. An allowed deletion succeeds; a denied deletion leaves the protected item unchanged and reports that result inline. | Not run |
+| Remove a saved device with allowed or denied credential deletion | The profile and saved viewing preferences are removed and the slot is freed in both cases. If Keychain deletion is denied, an inline notice explains that the protected password was retained. No authentication dialog or approval action appears. | See Preview 6 validation for automated cases; manual checks not run |
 | Locked/denied/unavailable Keychain or failed save | Error is useful, secrets stay out of logs/exports, and manual password entry/connection remains possible. | Not run |
-| Automatic startup/reconnect with an inaccessible saved item | No macOS authentication dialog. The optional Use saved password… button is the only path that can ask for Keychain approval; canceling preserves manual entry. | See Preview 4 validation report |
+| Automatic startup/reconnect with an inaccessible saved item | No macOS authentication dialog or approval action. The read failure is reported inline and manual password entry remains available; the protected item is unchanged. | See Preview 6 validation report |
 | First connection and per-endpoint settings after restart | New endpoints default to Fit/Wi-Fi; selected zoom and quality persist independently for each host/port. | See Preview 4 validation report |
 
 ## Known limits and publication gate

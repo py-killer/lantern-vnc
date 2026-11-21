@@ -150,8 +150,11 @@ a manually entered device; a successful manual connection also saves it when
 a slot is available, using the server's desktop name. Passwords are stored separately
 in macOS Keychain only when you opt in and saving succeeds. Uncheck **Remember
 password** to request deletion for that host and port; **Remove** also requests
-deletion of the selected profile's saved password. One remote session is active at a
-time. A full saved list still permits a one-off connection.
+deletion of the selected profile's saved password. Removing a device still clears
+its profile and saved viewing preferences and frees the slot if that password
+cannot be deleted; an inline notice explains that the protected credential was
+retained. One remote session is active at a time. A full saved list still permits
+a one-off connection.
 
 All Keychain reads, saves, and deletions are noninteractive. Lantern never
 opens a Keychain authentication dialog or offers an approval action. Errors

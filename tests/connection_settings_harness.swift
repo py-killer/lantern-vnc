@@ -10,6 +10,7 @@ private final class ConnectionPasswordStore: PasswordStorage {
     var values: [String: String] = [:]
     var saves: [Save] = []
     var removes: [(String, UInt16)] = []
+    var removalAttempts: [(String, UInt16)] = []
     var reads: [(String, UInt16)] = []
     var failRead = false, failSave = false, failRemove = false
     private func key(_ host: String, _ port: UInt16) throws -> String {
@@ -28,6 +29,7 @@ private final class ConnectionPasswordStore: PasswordStorage {
         saves.append(Save(host: host, port: port, password: password))
     }
     func remove(host: String, port: UInt16) throws {
+        removalAttempts.append((host,port))
         if failRemove { throw PasswordStoreError.keychain(errSecAuthFailed) }
         values.removeValue(forKey: try key(host, port)); removes.append((host, port))
     }
@@ -313,11 +315,50 @@ struct ConnectionSettingsHarness {
         expect(picker.sendAction(picker.action,to:picker.target), "saved-device selection is wired")
         expect(host.stringValue == discovered.host && port.stringValue == String(discovered.port), "saved-device selection switches to its own endpoint")
         expect(status.toolTip == nil && window.subtitle == "Native remote desktop", "selecting a saved device clears stale connected metadata")
+        // An inaccessible credential must not trap a device in the three-slot
+        // profile list. Exercise the actual Remove button with a failing fake.
+        let profilePreferences=ConnectionPreferencesStore(defaults:preferences)
+        expect(profilePreferences.save(host:discovered.host,port:discovered.port,zoomMode:.scale(1.5),qualityIndex:2),
+               "owned removal fixture has independent viewing preferences")
+        let preferenceKey=ConnectionPreferencesStore.endpointKey(host:discovered.host,port:discovered.port)!
+        expect(preferences.dictionary(forKey:"connectionPreferences.v1")?[preferenceKey] != nil,
+               "viewing preference exists before profile removal")
+        try store.seed(host:discovered.host,port:discovered.port,value:"protected-fixture-value")
+        let beforeRemoval=try profiles(), readsBeforeRemoval=store.reads.count
+        store.failRemove=true
+        guard let remove=allViews(content).compactMap({ $0 as? NSButton }).first(where:{ $0.action == NSSelectorFromString("removeCurrentDevice") }) else {
+            fatalError("Missing owned Remove device control")
+        }
+        expect(remove.isEnabled && remove.sendAction(remove.action,to:remove.target), "saved profile Remove action is enabled and wired")
+        let afterRemoval=try profiles()
+        expect(afterRemoval == beforeRemoval.filter { $0.id != selectedProfile?.id } && afterRemoval.count == 2,
+               "credential deletion failure still removes only the selected device and frees a profile slot")
+        expect(preferences.dictionary(forKey:"connectionPreferences.v1")?[preferenceKey] == nil,
+               "profile removal deletes that endpoint's viewing preferences despite inaccessible credential")
+        expect(try store.value(host:discovered.host,port:discovered.port) == "protected-fixture-value" &&
+               store.removalAttempts.last?.0 == discovered.host && store.removalAttempts.last?.1 == discovered.port,
+               "failed credential deletion preserves the protected item and never redirects to another endpoint")
+        expect(store.reads.count == readsBeforeRemoval && password.stringValue.isEmpty && remember.state == .off,
+               "removal does not reload a retained credential or leave future password saving enabled")
+        expect(status.stringValue == "Device removed · saved password retained" && passwordHint.stringValue.contains("remains on this Mac"),
+               "inline result clearly distinguishes removed device from retained saved credential")
+        let removalNotice=passwordHint.stringValue
+        controller.controlTextDidChange(Notification(name:NSControl.textDidChangeNotification,object:host))
+        finish(host,controller:controller)
+        expect(passwordHint.stringValue == removalNotice && store.reads.count == readsBeforeRemoval,
+               "ordinary picker refresh and unchanged endpoint editing preserve the partial-removal notice")
+        expect(window.attachedSheet == nil, "partial profile removal never opens an authentication or error dialog")
+        store.failRemove=false
+        controller.acceptDiscoveredServer(overflow,alias:"Replacement fixture")
+        expect(try profiles().count == 3 && profiles().contains { $0.host == overflow.host && $0.port == overflow.port && $0.name == "Replacement fixture" },
+               "freed profile slot immediately accepts another confirmed computer")
+        expect(window.attachedSheet == nil && store.saves.count == 1 && connect.title == "Connect",
+               "replacement profile confirmation neither requests authorization nor starts a connection")
         let domain = preferences.persistentDomain(forName: suite) ?? [:]
         let data = try PropertyListSerialization.data(fromPropertyList: domain, format: .binary, options: 0)
         for value in ["mock-password", "second-fixture-value", "port-fixture-value", "prior-fixture-value",
                       "prior-accepted-fixture", "wrong-fixture-value", "canceled-fixture-value", "retained-fixture-value",
-                      "unavailable-fixture-value", "manual-fixture-value"] {
+                      "unavailable-fixture-value", "manual-fixture-value", "protected-fixture-value"] {
             expect(data.range(of: Data(value.utf8)) == nil, "no synthetic password bytes persisted in temporary defaults")
         }
         expect(NSDictionary(dictionary: productionBefore ?? [:]).isEqual(to: UserDefaults.standard.persistentDomain(forName: "local.lantern.vnc") ?? [:]), "production app preferences unchanged")
@@ -325,7 +366,8 @@ struct ConnectionSettingsHarness {
         let report: [String: Any] = ["checks": checks, "keychainAccess": "none; injected in-memory fake",
             "networkScope": "owned 127.0.0.1 mock servers only", "globalInputEvents": 0,
             "windowPresentation": "owned offscreen non-key", "successfulPasswordSaves": store.saves.count,
-            "confirmedProfilesSavedBeforeAuthentication": 2,
+            "confirmedProfilesSavedBeforeAuthentication": 3,
+            "profileRemovalWithInaccessibleCredential":"slot freed, endpoint preferences removed, protected credential untouched, notice inline",
             "interactiveCredentialControls": 0,
             "latencyLifecycle":"hidden before authentication, visible while connected, reset after disconnect/rejection/cancel",
             "macOS": ProcessInfo.processInfo.operatingSystemVersionString]

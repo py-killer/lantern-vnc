@@ -2,6 +2,7 @@
 
 ## 1.1.0-preview.6 — 2026-11-21
 
+- Build 10: removing a device clears its profile and saved viewing preferences and frees the slot even when deletion of a protected saved password fails. An inline notice says that the credential was retained; removal never opens an authentication dialog or offers an approval action.
 - Restore the last normal window size and position instead of centering it on every launch. Recover saved offscreen placement when its monitor is unavailable. Window geometry is separate from per-endpoint zoom/picture settings and never changes the server's resolution.
 - Show an **RTT** line beneath the connection status while connected, refreshed once per second from macOS's passive smoothed TCP estimate. Missing or zero estimates display **RTT unavailable**.
 - Remove the saved-password approval action and forbid authentication UI for every Keychain read, save, and deletion. Report errors inline and turn Remember password off after a failed save. Leave inaccessible old items unchanged, with no plaintext fallback or security reset. Cross-update persistence with ad hoc signing remains unverified.

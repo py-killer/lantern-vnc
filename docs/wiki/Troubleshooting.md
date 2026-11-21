@@ -28,7 +28,7 @@ Passwords are separate from device profiles and keyed by host and TCP port. A di
 
 Every Keychain read, save, and deletion is noninteractive. Failures are shown inline, and a failed save turns **Remember password** off. The app offers no approval action or Keychain authentication dialog. Manual VNC password entry remains available when an item cannot be read or saved.
 
-Uncheck **Remember password** to request deletion of the saved value; **Remove** also requests deletion of its saved password. If deletion fails, Lantern reports it inline and leaves the protected item unchanged. Ad hoc signed updates can lose access to an earlier build's items, and reliable cross-update persistence is not yet verified. The app does not claim that this is fixed, reset Keychain security, or store a plaintext fallback.
+Uncheck **Remember password** to request deletion of the saved value; **Remove** also requests deletion of its saved password. If deletion fails, Lantern reports inline that the protected password was retained and leaves that Keychain item unchanged. Removing the device still clears its profile and saved viewing preferences and frees the slot; no Mac password dialog or approval action is needed. Ad hoc signed updates can lose access to an earlier build's items, and reliable cross-update persistence is not yet verified. The app does not claim that this is fixed, reset Keychain security, or store a plaintext fallback.
 
 ## The desktop is tiny, cropped, or an edge is unreachable
 

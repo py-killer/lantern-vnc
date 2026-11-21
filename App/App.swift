@@ -41,7 +41,6 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     private let connect = NSButton(title: "Connect", target: nil, action: nil)
     private let status = NSTextField(labelWithString: "Ready to connect")
     private let latency = NSTextField(labelWithString: NetworkLatency.unavailable.title)
-    private let detail = NSTextField(wrappingLabelWithString: "Enter the VNC password set on your TightVNC server.")
     private let quality = NSPopUpButton(frame: .zero, pullsDown: false)
     private let zoom = NSPopUpButton(frame: .zero, pullsDown: false)
     private let hand = NSButton(title: "Hand", target: nil, action: nil)
@@ -251,7 +250,6 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         metrics.translatesAutoresizingMaskIntoConstraints=false; main.addSubview(metrics)
         NSLayoutConstraint.activate([buttons.leadingAnchor.constraint(equalTo:main.leadingAnchor,constant:16),buttons.bottomAnchor.constraint(equalTo:main.bottomAnchor,constant:-13),metrics.trailingAnchor.constraint(equalTo:main.trailingAnchor,constant:-18),metrics.centerYAnchor.constraint(equalTo:buttons.centerYAnchor),metrics.leadingAnchor.constraint(greaterThanOrEqualTo:buttons.trailingAnchor,constant:12)])
         sessionControls=[cad,send,refresh]; sessionControls.forEach{$0.isEnabled=false}
-        detail.font = .systemFont(ofSize:12); detail.textColor = .secondaryLabelColor
     }
     private func configureActions() {
         connect.target=self; connect.action=#selector(toggleConnection)
@@ -490,10 +488,23 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     }
     @objc private func removeCurrentDevice() {
         guard session == nil, let device = currentDevice else { return }
+        var credentialRemovalError: Error?
         do { try passwordStore.remove(host:device.host,port:device.port) }
-        catch { passwordHint.stringValue="This device’s saved password could not be removed: "+error.localizedDescription; return }
+        catch { credentialRemovalError=error }
         connectionPreferences.remove(host:device.host,port:device.port)
-        devices.remove(id:device.id); loadRememberedPassword(); restoreConnectionPreferences(); refreshDevicePicker(); status.stringValue = "Device and its saved password removed"
+        devices.remove(id:device.id)
+        // Removing a profile must free its slot even if its protected credential
+        // is inaccessible. Do not immediately reload that retained credential.
+        password.stringValue="";rememberPassword.state = .off;credentialEndpoint=endpointIdentity
+        restoreConnectionPreferences();refreshDevicePicker()
+        status.toolTip=nil;window?.subtitle="Native remote desktop"
+        if let error=credentialRemovalError {
+            status.stringValue="Device removed · saved password retained"
+            passwordHint.stringValue="Device removed. Its saved password could not be removed and remains on this Mac. "+error.localizedDescription
+        } else {
+            status.stringValue="Device and its saved password removed"
+            passwordHint.stringValue="Saved password removed."
+        }
     }
     @objc func toggleConnection() {
         if let session = session {

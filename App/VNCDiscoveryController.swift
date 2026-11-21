@@ -84,7 +84,7 @@ final class VNCDiscoveryController: NSWindowController, NSTableViewDataSource, N
             networks = try networksProvider()
             for network in networks { networkPicker.addItem(withTitle:network.displayName) }
             search.isEnabled = !networks.isEmpty;networkPicker.isEnabled = !networks.isEmpty
-            context.stringValue="Choose a VNC server, then enter its password in the connection sidebar."
+            context.stringValue="Save a discovered VNC computer with a name you recognize."
             if networks.isEmpty {
                 message.stringValue="No supported local IPv4 network was found. Connect to Wi-Fi or Ethernet, or enter a server address manually."
             } else { updateContext(); message.stringValue="Ready to search your local network." }

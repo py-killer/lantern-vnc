@@ -5,6 +5,9 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <netinet/tcp.h>
+#ifdef __APPLE__
+#include <netinet/tcp_fsm.h>
+#endif
 #include <pthread.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -40,6 +43,11 @@ struct vncv_client {
     /* A duplicate, never the rfbClient descriptor. Protected by mutex, so a
        concurrent stop cannot touch a freed client or a reused descriptor. */
     int shutdown_fd;
+    /* Protected by mutex. Kernel counters provide observed activity only;
+       TCP_CONNECTION_INFO does not expose an RTT sample timestamp. */
+    int network_ready, network_observed;
+    uint64_t network_txpackets, network_rxpackets, network_txbytes, network_rxbytes;
+    double network_activity_at;
     vncv_callbacks callbacks;
     void *context;
     char *host, *password;
@@ -176,6 +184,47 @@ static double monotonic_seconds(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
+}
+
+static void reset_network_rtt_locked(vncv_client *c) {
+    c->network_ready = c->network_observed = 0;
+    c->network_txpackets = c->network_rxpackets = 0;
+    c->network_txbytes = c->network_rxbytes = 0;
+    c->network_activity_at = 0;
+}
+
+static int network_rtt_locked(vncv_client *c, vncv_network_rtt *snapshot) {
+    memset(snapshot, 0, sizeof(*snapshot));
+    if (!c->network_ready || !c->running || c->stop_requested || c->shutdown_fd < 0) return 0;
+#if defined(__APPLE__) && defined(TCP_CONNECTION_INFO)
+    struct tcp_connection_info info;
+    memset(&info, 0, sizeof(info));
+    socklen_t length = sizeof(info);
+    size_t required = offsetof(struct tcp_connection_info, tcpi_rxbytes) + sizeof(info.tcpi_rxbytes);
+    if (getsockopt(c->shutdown_fd, IPPROTO_TCP, TCP_CONNECTION_INFO, &info, &length) != 0 ||
+        length < required || info.tcpi_state != TCPS_ESTABLISHED) return 0;
+    double now = monotonic_seconds();
+    if (c->network_observed &&
+        (info.tcpi_txpackets != c->network_txpackets || info.tcpi_rxpackets != c->network_rxpackets ||
+         info.tcpi_txbytes != c->network_txbytes || info.tcpi_rxbytes != c->network_rxbytes)) {
+        c->network_activity_at = now;
+    }
+    c->network_observed = 1;
+    c->network_txpackets = info.tcpi_txpackets;
+    c->network_rxpackets = info.tcpi_rxpackets;
+    c->network_txbytes = info.tcpi_txbytes;
+    c->network_rxbytes = info.tcpi_rxbytes;
+    /* Apple's SDK netinet/tcp.h and XNU tcp_connection_fill_info specify ms.
+       A zero estimate is ambiguous (including no sample); never invent 0 ms. */
+    if (info.tcpi_srtt == 0) return 0;
+    snapshot->rtt_ms = (double)info.tcpi_srtt;
+    snapshot->observed_activity_age_ms = (now > c->network_activity_at ? now - c->network_activity_at : 0) * 1000.0;
+    snapshot->available = 1;
+    snapshot->stale = snapshot->observed_activity_age_ms >= 5000.0;
+    return 1;
+#else
+    return 0;
+#endif
 }
 
 static int connect_socket(vncv_client *c) {
@@ -454,6 +503,12 @@ static void *connection_worker(void *argument) {
         set_error(c, "Unable to initialize responsive input servicing.");
         goto cleanup;
     }
+    pthread_mutex_lock(&c->mutex);
+    c->network_ready = 1;
+    c->network_activity_at = monotonic_seconds();
+    vncv_network_rtt initial_network_rtt;
+    network_rtt_locked(c, &initial_network_rtt);
+    pthread_mutex_unlock(&c->mutex);
     if (!stopped(c) && c->callbacks.connected) c->callbacks.connected(c->context, rfb->desktopName ? rfb->desktopName : "VNC desktop", rfb->width, rfb->height);
     while (!stopped(c)) {
         if (!process_commands(c, rfb)) { if (!c->last_error[0]) set_error(c, "The connection closed while sending input."); break; }
@@ -477,6 +532,7 @@ static void *connection_worker(void *argument) {
     }
 cleanup:
     pthread_mutex_lock(&c->mutex);
+    reset_network_rtt_locked(c);
     if (c->shutdown_fd >= 0) { close(c->shutdown_fd); c->shutdown_fd = -1; }
     pthread_mutex_unlock(&c->mutex);
     if (rfb) {
@@ -543,6 +599,7 @@ int vncv_start_with_options(vncv_client *c, const char *host, uint16_t port, con
     pthread_mutex_lock(&c->mutex);
     clear_commands_locked(c);
     c->stop_requested = 0; c->running = 1;
+    reset_network_rtt_locked(c);
     c->enqueued_pointer_mask = 0; c->enqueued_pointer_known = 1;
     int err = pthread_create(&c->worker, NULL, connection_worker, c);
     if (err) { c->running = 0; pthread_mutex_unlock(&c->mutex); wipe_free(&c->password); return 0; }
@@ -554,6 +611,7 @@ void vncv_stop(vncv_client *c) {
     if (!c) return;
     pthread_mutex_lock(&c->mutex);
     c->stop_requested = 1;
+    reset_network_rtt_locked(c);
     if (c->shutdown_fd >= 0) shutdown(c->shutdown_fd, SHUT_RDWR);
     pthread_mutex_unlock(&c->mutex);
     wake_worker(c);
@@ -584,6 +642,15 @@ int vncv_is_running(vncv_client *c) {
     if (!c) return 0;
     pthread_mutex_lock(&c->mutex); int running = c->running; pthread_mutex_unlock(&c->mutex);
     return running;
+}
+int vncv_get_network_rtt(vncv_client *c, vncv_network_rtt *snapshot) {
+    if (!snapshot) return 0;
+    memset(snapshot, 0, sizeof(*snapshot));
+    if (!c) return 0;
+    pthread_mutex_lock(&c->mutex);
+    int available = network_rtt_locked(c, snapshot);
+    pthread_mutex_unlock(&c->mutex);
+    return available;
 }
 int vncv_key(vncv_client *c, uint32_t keysym, int down) {
     command *cmd = calloc(1, sizeof(*cmd));

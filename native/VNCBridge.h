@@ -45,6 +45,26 @@ void vncv_wait(vncv_client *client);
 void vncv_destroy(vncv_client *client);
 int vncv_is_running(vncv_client *client);
 
+/* Passive kernel TCP round-trip estimate for this authenticated connection.
+   This is network RTT, NOT input-to-screen latency or an application ping.
+   macOS TCP_CONNECTION_INFO exports tcpi_srtt directly in whole milliseconds.
+   No packets, credentials, or synthetic input are sent by this getter.
+
+   The public kernel API supplies no RTT sample timestamp. Activity age is
+   milliseconds since a packet/byte counter change was last OBSERVED by this API,
+   not the age of the kernel's RTT sample. stale means no observed traffic for
+   at least 5 seconds; callers should present an idle/last-estimate indication.
+   Polling does not itself make an old estimate fresh. All-zero RTT, closed/
+   connecting sessions, short replies, unsupported systems, and query failures
+   return 0 with available=0. No estimate survives stop/reconnect. */
+typedef struct vncv_network_rtt {
+    double rtt_ms;
+    double observed_activity_age_ms;
+    int available;
+    int stale;
+} vncv_network_rtt;
+int vncv_get_network_rtt(vncv_client *client, vncv_network_rtt *snapshot);
+
 /* Thread-safe queues: all RFB writes happen on the single worker, including
    when a partial framebuffer message is waiting for more network bytes.
    Button-down/up positions are retained when later motion is coalesced.

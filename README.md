@@ -1,6 +1,6 @@
 # Lantern VNC — free VNC client for Mac
 
-**Current preview: 1.1.0-preview.5 · Apple Silicon · macOS 13+**
+**Current preview: 1.1.0-preview.6 · Apple Silicon · macOS 13+**
 
 A free native VNC client for Apple Silicon Macs, built with AppKit and Metal.
 Use it for an occasional remote task or regular direct access to your existing VNC server.
@@ -22,7 +22,8 @@ preview, not a fully checked stable release.
 [Community and feedback](COMMUNITY.md) ·
 [Wiki](docs/wiki/Home.md) · [Changelog](CHANGELOG.md) ·
 [Release checklist](docs/RELEASE_CHECKLIST.md) ·
-[Preview 5 test results](docs/TEST_RESULTS-1.1.0-preview.5.md) ·
+[Preview 6 test results](docs/TEST_RESULTS-1.1.0-preview.6.md) ·
+[Earlier Preview 5 results](docs/TEST_RESULTS-1.1.0-preview.5.md) ·
 [Earlier Preview 4 results](docs/TEST_RESULTS-1.1.0-preview.4.md)
 
 ## Open the app
@@ -126,6 +127,16 @@ resolution; they do not change VNC compression or guarantee faster Wi-Fi.
 Full-screen changes still require full-image work. The recorded copy
 benchmark measures local CPU work, not network or end-to-end performance.
 
+While connected, **RTT** appears below the connection status and refreshes
+once a second. It is macOS's smoothed TCP round-trip estimate for the current
+connection, not input-to-screen delay. `RTT —` means no usable estimate is
+available. **Idle** appears after five seconds without an observed transport
+counter change; that activity age is not the age of the RTT sample. Polling
+does not send extra probes, input, or screen-update requests, or add analytics.
+Low RTT can still accompany slow capture, encoding, decoding, or rendering.
+With a local SSH port forward, it can describe the local forwarding endpoint
+rather than the remote computer. Picture quality and rendering are unchanged.
+
 Save up to three device profiles to switch between your usual servers. Device
 settings are stored locally on your Mac. The finder saves a device when you
 confirm its alias. Choose **Rename…** to change a saved name or **Save…** for
@@ -226,6 +237,10 @@ internet. The server decides whether a connection permits remote control.
   server may be CPU-limited. Fit changes the local view, not the amount of
   remote desktop requested. Local copy improvements cannot fix a blocked or
   unreliable network path.
+- **RTT is low but the screen lags:** RTT measures the TCP connection, not
+  capture, encoding, or display completion. Check the server workload and
+  picture preset; a local port-forward endpoint can also have low RTT while
+  the remote route remains slow.
 
 This is a focused desktop viewer, with no audio, file transfer, printing,
 recording, cloud address book, or unattended relay service. It does not aim

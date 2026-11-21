@@ -240,6 +240,8 @@ class Handler(socketserver.BaseRequestHandler):
                 self.server.log(self.connection_id, "encodings", values=encodings)
             elif message == 3:
                 read_exact(sock, 9)
+                if mode == "rtt-idle":
+                    self.server.log(self.connection_id, "update-request")
                 if mode == "oversize":
                     sock.sendall(update(rect(0, 0, 65535, 65535, -223)))
                     mode = "sent-oversize"
@@ -290,6 +292,8 @@ class Handler(socketserver.BaseRequestHandler):
                     stage += 1
                 elif mode.startswith("slow-"):
                     pass
+                elif mode == "rtt-idle":
+                    pass # A passive RTT getter must not generate requests.
                 elif mode == "interactive":
                     time.sleep(0.2)
                     sock.sendall(update())
@@ -326,7 +330,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=5901)
     parser.add_argument("--scenario", choices=("frames", "tight", "jpeg", "password", "auth-fail", "stall", "oversize", "drop", "interactive",
-                        "slow-small", "slow-large", "slow-capabilities", "slow-view-only", "slow-cancel", "slow-drop"), default="frames")
+                        "slow-small", "slow-large", "slow-capabilities", "slow-view-only", "slow-cancel", "slow-drop", "rtt-idle"), default="frames")
     parser.add_argument("--interactive", action="store_true")
     parser.add_argument("--info", type=Path)
     parser.add_argument("--events", type=Path)

@@ -2,7 +2,7 @@
 
 [Wiki home](Home.md) · [Getting started](Getting-Started.md) · [Troubleshooting](Troubleshooting.md)
 
-This guide describes the implemented **1.1.0-preview.5**. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.
+This guide describes the implemented **1.1.0-preview.6**. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.
 
 The server supplies its desktop resolution. Lantern's zoom, window size, and local navigation change your view of that image; they never change the server's display resolution.
 
@@ -53,6 +53,16 @@ Metal renders a viewport the size of the visible local area. A separate pan offs
 Preview 5 copies changed parts of the decoded image and uploads those regions to the GPU. Each display buffer accumulates the changes it still needs, so skipped draws do not leave stale areas. Full-screen updates still require full-image work. This preserves the decoded pixels, chosen picture preset, and server resolution; it does not change VNC network compression. Queued input can also be sent while a partial screen message waits for more data. Neither change guarantees a Wi-Fi or end-to-end speed increase.
 
 Click positions still need validation after a display change. If clicks land incorrectly, report the zoom mode, pan position, window size, and whether the issue followed a resize, reconnect, remote resolution change, or move between displays.
+
+## Read network RTT
+
+While connected, **RTT** is displayed below the connection status and refreshed once per second. It reads macOS's smoothed TCP round-trip estimate for that connection, in milliseconds. It does not measure input-to-screen delay. The units and smoothed field are defined in [Apple's TCP header](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/netinet/tcp.h); the [XNU export implementation](https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/netinet/tcp_usrreq.c) returns the kernel estimate.
+
+`RTT —` means there is no usable estimate, including an unavailable or zero value. After five seconds without an observed transport-counter change, the line adds **idle**. The tooltip may show when a traffic-counter change was last observed; this is not the age of the RTT sample. Polling once a second does not create a fresh RTT measurement, and an idle connection can retain an older estimate.
+
+The TCP peer can be a local forwarding endpoint. For example, an SSH port forward on your Mac can have a low local RTT while its onward route to the remote computer is slow. Even on a direct connection, capture, encoding, transfer, decoding, and rendering can add delay beyond this number.
+
+The indicator sends no extra probes, synthetic input, or screen-update requests and adds no analytics. It changes neither picture presets nor decoded pixels, rendering, or server resolution.
 
 ## Picture quality and input are separate controls
 

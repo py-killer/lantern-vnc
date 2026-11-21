@@ -50,6 +50,14 @@ final class VNCSession {
     }
 
     func stop() { if let client = client { vncv_stop(client) } }
+    func networkLatency() -> NetworkLatency {
+        guard let client=client else { return .unavailable }
+        var snapshot=vncv_network_rtt()
+        guard vncv_get_network_rtt(client,&snapshot) != 0,snapshot.available != 0 else { return .unavailable }
+        return NetworkLatency(milliseconds:snapshot.rtt_ms,
+                              observedActivityAgeMilliseconds:snapshot.observed_activity_age_ms,
+                              isIdle:snapshot.stale != 0)
+    }
     func key(_ symbol: UInt32, down: Bool) { if let client = client { _ = vncv_key(client, symbol, down ? 1 : 0) } }
     func pointer(x: Int32, y: Int32, mask: Int32) { if let client = client { _ = vncv_pointer(client, x, y, mask) } }
     func refresh() { if let client = client { _ = vncv_refresh(client) } }

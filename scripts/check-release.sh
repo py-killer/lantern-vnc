@@ -14,6 +14,7 @@ xcrun swiftc -swift-version 5 -module-cache-path "$TEST_DIR/module-cache" \
   "$PROJECT_DIR/App/DeviceStore.swift" "$PROJECT_DIR/tests/test_device_store.swift" \
   -o "$TEST_DIR/test-devices"
 "$PROJECT_DIR/tests/run-connection-preferences-tests.sh"
+"$PROJECT_DIR/tests/run-network-latency-tests.sh"
 "$PROJECT_DIR/tests/run-frame-update-tests.sh"
 "$PROJECT_DIR/tests/run-network-discovery-tests.sh"
 if "$PROJECT_DIR/tests/run-password-tests.sh"; then

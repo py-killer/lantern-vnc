@@ -23,7 +23,7 @@
       <div class="page-intro"><span class="eyebrow">LANTERN VNC · COMMUNITY WIKI</span><span class="preview-label">Preview documentation</span></div>
       <article class="guide-content"><h1 id="display-and-navigation">Display and navigation</h1>
 <p><a href="index.html">Wiki home</a> · <a href="getting-started.html">Getting started</a> · <a href="troubleshooting.html">Troubleshooting</a></p>
-<p>This guide describes the implemented <strong>1.1.0-preview.5</strong>. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.</p>
+<p>This guide describes the implemented <strong>1.1.0-preview.6</strong>. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.</p>
 <p>The server supplies its desktop resolution. Lantern's zoom, window size, and local navigation change your view of that image; they never change the server's display resolution.</p>
 <h2 id="choose-a-viewing-mode">Choose a viewing mode</h2>
 <div class="table-scroll" role="region" aria-label="Reference table" tabindex="0"><table>
@@ -106,6 +106,11 @@
 <p>Metal renders a viewport the size of the visible local area. A separate pan offset selects which part of the remote image is visible. Rendering and remote pointer coordinates use the same geometry transform, so the image and click mapping follow the same zoom and pan state. The Metal drawable does not grow to the full dimensions of an oversized desktop.</p>
 <p>Preview 5 copies changed parts of the decoded image and uploads those regions to the GPU. Each display buffer accumulates the changes it still needs, so skipped draws do not leave stale areas. Full-screen updates still require full-image work. This preserves the decoded pixels, chosen picture preset, and server resolution; it does not change VNC network compression. Queued input can also be sent while a partial screen message waits for more data. Neither change guarantees a Wi-Fi or end-to-end speed increase.</p>
 <p>Click positions still need validation after a display change. If clicks land incorrectly, report the zoom mode, pan position, window size, and whether the issue followed a resize, reconnect, remote resolution change, or move between displays.</p>
+<h2 id="read-network-rtt">Read network RTT</h2>
+<p>While connected, <strong>RTT</strong> is displayed below the connection status and refreshed once per second. It reads macOS's smoothed TCP round-trip estimate for that connection, in milliseconds. It does not measure input-to-screen delay. The units and smoothed field are defined in <a href="https://github.com/apple-oss-distributions/xnu/blob/main/bsd/netinet/tcp.h">Apple's TCP header</a>; the <a href="https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/netinet/tcp_usrreq.c">XNU export implementation</a> returns the kernel estimate.</p>
+<p><code>RTT —</code> means there is no usable estimate, including an unavailable or zero value. After five seconds without an observed transport-counter change, the line adds <strong>idle</strong>. The tooltip may show when a traffic-counter change was last observed; this is not the age of the RTT sample. Polling once a second does not create a fresh RTT measurement, and an idle connection can retain an older estimate.</p>
+<p>The TCP peer can be a local forwarding endpoint. For example, an SSH port forward on your Mac can have a low local RTT while its onward route to the remote computer is slow. Even on a direct connection, capture, encoding, transfer, decoding, and rendering can add delay beyond this number.</p>
+<p>The indicator sends no extra probes, synthetic input, or screen-update requests and adds no analytics. It changes neither picture presets nor decoded pixels, rendering, or server resolution.</p>
 <h2 id="picture-quality-and-input-are-separate-controls">Picture quality and input are separate controls</h2>
 <p>Choose a picture preset before connecting. It is saved for that host and port, including across app restarts, and applies on the next connection. Existing devices inherit the former global picture preset once during upgrade; later changes remain independent.</p>
 <div class="table-scroll" role="region" aria-label="Reference table" tabindex="0"><table>
@@ -154,6 +159,7 @@
 <li><a href="#reach-an-oversized-desktops-edges">Reach an oversized desktop's edges</a></li>
 <li><a href="#make-more-room-and-change-zoom-quickly">Make more room and change zoom quickly</a></li>
 <li><a href="#how-the-viewport-works">How the viewport works</a></li>
+<li><a href="#read-network-rtt">Read network RTT</a></li>
 <li><a href="#picture-quality-and-input-are-separate-controls">Picture quality and input are separate controls</a></li>
 <li><a href="#preview-verification-limits">Preview verification limits</a></li>
 </ul>

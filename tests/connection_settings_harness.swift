@@ -118,20 +118,30 @@ struct ConnectionSettingsHarness {
         let connect: NSButton = find("connectButton", in: content, as: NSButton.self)
         let zoom: NSPopUpButton = find("desktopZoom", in: content, as: NSPopUpButton.self)
         let quality: NSPopUpButton = find("pictureQuality", in: content, as: NSPopUpButton.self)
+        let latency: NSTextField = find("networkLatency", in: content, as: NSTextField.self)
         func endpoint(_ address: String, _ number: UInt16) {
             change(host, to: address, controller: controller)
             change(port, to: String(number), controller: controller)
             finish(port, controller: controller)
         }
-        func connected() { wait("owned password server authenticates and controller connects") { connect.title == "Disconnect" && connect.isEnabled } }
+        func connected() {
+            wait("owned password server authenticates and controller connects") { connect.title == "Disconnect" && connect.isEnabled }
+            expect(!latency.isHidden && latency.stringValue.hasPrefix("RTT "), "connected session exposes a numeric or honestly unavailable transport estimate")
+            expect(latency.toolTip?.contains("Smoothed TCP") == true && latency.toolTip?.contains("not input-to-screen delay") == true,
+                   "live connection indicator identifies transport RTT rather than screen latency")
+        }
         func disconnect() {
             controller.toggleConnection()
             wait("owned session stops and settings become available") { connect.title == "Connect" && connect.isEnabled }
+            expect(latency.isHidden && latency.stringValue == NetworkLatency.unavailable.title,
+                   "disconnect clears and hides the prior connection's latency")
+            expect(latency.toolTip == NetworkLatency.unavailable.toolTip, "disconnect resets any idle/activity metadata")
         }
 
         expect(!window.isKeyWindow, "offscreen test window never takes keyboard focus")
         expect(remember.state == .off && password.stringValue.isEmpty, "new endpoint defaults to remember OFF and empty password")
         expect(approve.isHidden && store.approvedReads.isEmpty, "startup never requests approval and hides the optional approval control")
+        expect(latency.isHidden && latency.stringValue == "RTT —", "startup shows no inherited latency from another connection")
         expect(zoom.indexOfSelectedItem == 1 && quality.indexOfSelectedItem == 3, "new connection defaults to Fit and the high-quality Wi-Fi preset")
         store.failRead = true
         endpoint("approval-required.invalid", passwordPort); endpoint("127.0.0.1", passwordPort)
@@ -163,6 +173,7 @@ struct ConnectionSettingsHarness {
         closeOwnedSheet(window); store.failRemove = false
         controller.toggleConnection()
         expect(password.stringValue.isEmpty, "password field cleared on connection start")
+        expect(latency.isHidden, "pending connection does not expose a previous RTT")
         connected()
         expect(store.saves.isEmpty, "successful authentication after failed deletion honors opt-out and never saves")
         expect(store.approvedReads.count == 1, "manual connection after canceled approval never invokes another interactive read")
@@ -170,6 +181,9 @@ struct ConnectionSettingsHarness {
         let rememberedView = ConnectionPreferencesStore(defaults: preferences).load(host: "127.0.0.1", port: passwordPort)
         expect(rememberedView.zoomMode == .scale(0.75) && rememberedView.qualityIndex == 1, "connected endpoint retains its viewing and quality choices")
         store.failRead = false; store.approvalError = nil
+        controller.testingShowNetworkLatency(NetworkLatency(milliseconds:250,observedActivityAgeMilliseconds:17000,isIdle:true))
+        expect(latency.stringValue == "RTT 250 ms · idle" && !latency.isHidden,
+               "lifecycle test starts disconnect from a concrete prior latency value")
         disconnect()
         expect(remember.state == .off && password.stringValue.isEmpty, "unsaved endpoint stays empty after disconnect")
 
@@ -208,6 +222,7 @@ struct ConnectionSettingsHarness {
         password.stringValue = "wrong-fixture-value"
         controller.toggleConnection()
         wait("auth rejection restores settings") { connect.title == "Connect" && connect.isEnabled }
+        expect(latency.isHidden && latency.stringValue == "RTT —", "authentication rejection never retains a stale RTT")
         expect(store.saves.count == 1, "authentication failure never saves or overwrites")
         expect(try store.value(host: "127.0.0.1", port: failurePort) == "prior-accepted-fixture", "previous saved value survives failed authentication")
         expect(password.stringValue == "prior-accepted-fixture" && remember.state == .on, "saved credential reloads after rejection")
@@ -216,6 +231,7 @@ struct ConnectionSettingsHarness {
         password.stringValue = "canceled-fixture-value"; toggle(remember, to: .on)
         controller.toggleConnection(); settle(0.12)
         expect(connect.title == "Cancel" && store.saves.count == 1, "stalled unauthenticated session never saves")
+        expect(latency.isHidden && latency.stringValue == "RTT —", "stalled authentication does not show a fabricated RTT")
         disconnect()
         expect(try store.value(host: "127.0.0.1", port: stalledPort) == nil, "canceled attempt leaves no stored credential")
 
@@ -307,6 +323,7 @@ struct ConnectionSettingsHarness {
             "windowPresentation": "owned offscreen non-key", "successfulPasswordSaves": store.saves.count,
             "confirmedProfilesSavedBeforeAuthentication": 2,
             "explicitApprovalReads": store.approvedReads.count,
+            "latencyLifecycle":"hidden before authentication, visible while connected, reset after disconnect/rejection/cancel",
             "macOS": ProcessInfo.processInfo.operatingSystemVersionString]
         try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
             .write(to: URL(fileURLWithPath: CommandLine.arguments[4]))

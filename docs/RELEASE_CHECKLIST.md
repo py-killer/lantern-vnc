@@ -1,8 +1,8 @@
-# Release checklist — 1.1.0-preview.5
+# Release checklist — 1.1.0-preview.6
 
 **Status: preview candidate. Manual hardware checks are not complete.** Empty boxes and matrix cells mean not run. Implemented behavior and targeted automated checks are not proof that a hardware scenario passed. Keep failed or unavailable cases visible with a reason and a linked issue.
 
-Targeted results for this preview are recorded in the [Preview 5 validation report](TEST_RESULTS-1.1.0-preview.5.md). The [Preview 4 report](TEST_RESULTS-1.1.0-preview.4.md) remains historical evidence. The full physical-display matrix below remains a gate for a stable release; publishing a prerelease does not mark those cells as passed.
+Targeted results for this preview are recorded in the [Preview 6 validation report](TEST_RESULTS-1.1.0-preview.6.md). The [Preview 5 report](TEST_RESULTS-1.1.0-preview.5.md) and [Preview 4 report](TEST_RESULTS-1.1.0-preview.4.md) remain historical evidence. The full physical-display matrix below remains a gate for a stable release; publishing a prerelease does not mark those cells as passed.
 
 ## Targeted discovery observation — 2026-11-21
 

@@ -32,7 +32,7 @@ Uncheck **Remember password** to delete the saved value; **Remove** deletes the 
 
 ## The desktop is tiny, cropped, or an edge is unreachable
 
-In **1.1.0-preview.5**, new endpoints start in **Fit to Window** so the whole desktop is visible. Fit can make a 5K desktop's text tiny. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use the visible scroll bars or **Hand** to reach the edges. Hand makes dragging, scrolling, and arrow keys move the local view. Press Escape or turn Hand off to resume remote input. Normal scrolling with Hand off controls the remote app.
+In **1.1.0-preview.6**, new endpoints start in **Fit to Window** so the whole desktop is visible. Fit can make a 5K desktop's text tiny. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use the visible scroll bars or **Hand** to reach the edges. Hand makes dragging, scrolling, and arrow keys move the local view. Press Escape or turn Hand off to resume remote input. Normal scrolling with Hand off controls the remote app.
 
 At 100%, one remote pixel maps to one drawable/backing pixel, not one Mac point. Retina and macOS scaled display settings affect perceived text size. Local zoom never changes the server's resolution.
 
@@ -57,6 +57,12 @@ Use **Refresh screen** to request a full update. New endpoints default to **Wi-F
 Picture changes apply on the next connection and are saved for that host and port. There is no automatic quality adaptation. Remote desktop size, server update behavior, and network conditions all affect performance; shrinking the local view does not reduce the requested remote resolution. See the [preset table](FAQ.md#which-picture-preset-should-i-use-on-wi-fi).
 
 A server reporting more than 16,384 pixels on either axis or more than 256 MiB of framebuffer data exceeds the current client limit. Clipboard messages are limited to 1 MiB.
+
+## RTT is unavailable, idle, or low despite a slow screen
+
+`RTT —` means macOS has no usable TCP estimate for this connection. **Idle** means no transport-counter change was observed for at least five seconds; it does not mean the connection has failed or reveal when RTT was last sampled. Normal traffic can update the kernel estimate, but polling the indicator does not send probes or request new frames.
+
+Low RTT does not include screen capture, encoding, decoding, or rendering delay. Check server load and the picture preset rather than treating RTT as input-to-screen latency. A local SSH port forward or TCP proxy can also report a low RTT to its local endpoint while the onward route is slow. Hover over the indicator or read [its explanation](Display-and-Navigation.md#read-network-rtt).
 
 ## Connected, but keyboard or mouse input does nothing
 

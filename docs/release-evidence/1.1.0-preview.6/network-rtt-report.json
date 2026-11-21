@@ -1,0 +1,19 @@
+{
+  "result": "pass",
+  "protocolSessions": 116,
+  "addressSanitizer": "bridge, C tests, and LibVNCClient; unchanged JPEG dependency remains Release SIMD",
+  "nativeGetterChecks": [
+    "milliseconds unchanged (37 means37ms)",
+    "zero/short/state/error unavailable",
+    "5s observed-traffic idle boundary",
+    "polling does not freshen unchanged counters",
+    "traffic counter change resets observed activity age",
+    "stop and reconnect clear prior estimates",
+    "8000 concurrent getter calls"
+  ],
+  "pureFormattingChecks": 78,
+  "loopbackObservedRttMilliseconds": 1,
+  "loopbackIdleObservedAfterMilliseconds": 5001,
+  "passiveWireProof": "Repeated RTT queries added zero commands: original5inputmessages and2framebufferrequests only.",
+  "scope": "Owned test sockets and fake kernel replies. No private LAN addresses, credentials, or owner ICMP results included."
+}

@@ -22,6 +22,14 @@ fi
     "$VNC_ARCHIVE" "$JPEG_ARCHIVE" -lz -lpthread \
     -o "$TEST_DIR/test-client"
 "$TEST_DIR/test-client" --read-wake-registration
+"$CC" -std=c11 -D_DARWIN_C_SOURCE -g -O1 -Wall -Wextra \
+    ${SANITIZER_FLAGS[@]+"${SANITIZER_FLAGS[@]}"} \
+    -I "$PROJECT_DIR/native" -I "$LIBVNC_SOURCE/include" \
+    -I "$LIBVNC_BUILD/include" -I "$JPEG_BUILD" \
+    "$PROJECT_DIR/tests/test_network_rtt.c" \
+    "$VNC_ARCHIVE" "$JPEG_ARCHIVE" -lz -lpthread \
+    -o "$TEST_DIR/test-network-rtt"
+"$TEST_DIR/test-network-rtt"
 
 python3 - "$PROJECT_DIR" "$TEST_DIR" <<'PY'
 import json
@@ -56,6 +64,7 @@ cases = (
     ('slow-wake-storm', 'slow-small', -1, 1),
     ('slow-cancel', 'slow-cancel', -1, 1),
     ('slow-drop', 'slow-drop', -1, 1),
+    ('rtt-idle', 'rtt-idle', -1, 1),
 )
 for scenario, server_scenario, quality, compression in cases:
     info = work / (scenario + '.json')
@@ -78,7 +87,7 @@ for scenario, server_scenario, quality, compression in cases:
         time.sleep(.05)
         records = [json.loads(line) for line in events.read_text().splitlines()]
         negotiated = [item for item in records if item['event'] == 'encodings']
-        assert len(negotiated) == (0 if scenario in ('auth-fail', 'stall') else 5), negotiated
+        assert len(negotiated) == (0 if scenario in ('auth-fail', 'stall') else 1 if scenario == 'rtt-idle' else 5), negotiated
         for item in negotiated:
             encodings = item['values']
             # Preserve Tight-first preference and its lossless alternatives.
@@ -93,6 +102,11 @@ for scenario, server_scenario, quality, compression in cases:
             assert len(sent) == 5 and all(item['width'] == 4 and item['height'] == 3 for item in sent), sent
             print('PASS: actual Tight JPEG decode, BGRX channels, CopyRect, and raw resize')
         inputs = [item for item in records if item['event'] in ('key', 'pointer', 'clipboard')]
+        if scenario == 'rtt-idle':
+            assert len(inputs) == 5, inputs
+            requests = [item for item in records if item['event'] == 'update-request']
+            assert len(requests) == 2, requests
+            print('PASS: repeated RTT queries send no extra RFB input or framebuffer requests')
         if scenario.startswith('slow-'):
             if scenario == 'slow-view-only':
                 assert not inputs, inputs

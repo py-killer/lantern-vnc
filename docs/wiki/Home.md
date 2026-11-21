@@ -7,9 +7,9 @@ Lantern is a free native VNC viewer for Apple Silicon Macs running macOS 13 or l
 | [Getting started](Getting-Started.md) | Open the app, find a local server, name a device, and optionally remember its password. |
 | [Display and navigation](Display-and-Navigation.md) | Fit, saved zoom/picture presets, large desktops, and local versus remote scrolling. |
 | [Troubleshooting](Troubleshooting.md) | Connection, authentication, display, and input problems. |
-| [FAQ](FAQ.md) | Compatibility, clipboard behavior, privacy, and project limits. |
+| [FAQ](FAQ.md) | Compatibility, network RTT, clipboard behavior, privacy, and project limits. |
 
-These pages describe the implemented **1.1.0-preview.5**, including bounded local-server discovery, opt-in macOS Keychain passwords, and saved viewing preferences per host and port. New endpoints start in Fit with the Wi-Fi high-quality preset. Preview 5 reduces local copying for small screen changes and services queued input during partial updates; it does not change picture quality or VNC network compression. It is a preview, not a stable-release claim: physical external-display transitions and the complete manual hardware matrix remain unverified. See the [changelog](../../CHANGELOG.md) and [release checklist](../RELEASE_CHECKLIST.md); unchecked cases are not passes.
+These pages describe the implemented **1.1.0-preview.6**, including local-server discovery, optional Keychain passwords, saved viewing preferences, and a passive TCP RTT indicator. New endpoints start in Fit with the Wi-Fi high-quality preset. The existing dirty-region rendering improvements are preserved; RTT adds no probes or picture-quality changes. It is a preview, not a stable-release claim: physical external-display transitions and the complete manual hardware matrix remain unverified. See the [changelog](../../CHANGELOG.md) and [release checklist](../RELEASE_CHECKLIST.md); unchecked cases are not passes.
 
 ## Feedback and contributions
 

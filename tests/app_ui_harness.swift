@@ -47,11 +47,36 @@ struct AppUIHarness {
                    "all owned view frames are finite")
             expect(frame.width >= 0 && frame.height >= 0,"all owned view sizes are nonnegative")
         }
-        for identifier in ["desktopZoom","panViewButton","sidebarToggleButton"] {
+        for identifier in ["desktopZoom","panViewButton","sidebarToggleButton","fullscreenButton"] {
             let control: NSView=find(identifier,in:content,as:NSView.self)
             let rectangle=control.convert(control.bounds,to:content)
             expect(rectangle.width > 8 && rectangle.height > 8,"toolbar control has a usable size: \(identifier)")
             expect(content.bounds.insetBy(dx:-1,dy:-1).contains(rectangle),"toolbar control is not clipped: \(identifier)")
+        }
+    }
+    private static func latencyGeometry(_ content: NSView, snapshot: NetworkLatency) {
+        let label: NSTextField=find("networkLatency",in:content,as:NSTextField.self)
+        let status: NSTextField=find("connectionStatus",in:content,as:NSTextField.self)
+        expect(!label.isHidden && label.stringValue == snapshot.title,"latency display is visible with the requested synthetic value")
+        expect(label.toolTip == snapshot.toolTip,"latency display retains its measurement-scope tooltip")
+        let rectangle=label.convert(label.bounds,to:content)
+        let statusRectangle=status.convert(status.bounds,to:content)
+        expect(rectangle.height >= 10 && rectangle.width >= label.intrinsicContentSize.width-0.5,
+               "complete latency text stays readable without truncation")
+        expect(content.bounds.insetBy(dx:-1,dy:-1).contains(rectangle),"latency indicator stays inside the narrow owned window")
+        expect(!rectangle.insetBy(dx:0.5,dy:0.5).intersects(statusRectangle.insetBy(dx:0.5,dy:0.5)),
+               "latency second line does not overlap the connection title")
+        expect(content.isFlipped ? rectangle.minY >= statusRectangle.maxY-1 : rectangle.maxY <= statusRectangle.minY+1,
+               "latency occupies the line below the connection title")
+        let header: NSView=find("viewerHeader",in:content,as:NSView.self)
+        expect(abs(header.bounds.height-50) < 1,"latency preserves the existing header height")
+        let headerRectangle=header.convert(header.bounds,to:content)
+        expect(headerRectangle.insetBy(dx:-1,dy:-1).contains(rectangle),"latency fits within the existing header")
+        for identifier in ["desktopZoom","panViewButton","sidebarToggleButton","fullscreenButton"] {
+            let control: NSView=find(identifier,in:content,as:NSView.self)
+            let other=control.convert(control.bounds,to:content)
+            expect(!rectangle.insetBy(dx:0.5,dy:0.5).intersects(other.insetBy(dx:0.5,dy:0.5)),
+                   "latency does not overlap toolbar control: \(identifier)")
         }
     }
     private static func choose(_ index: Int,in popup: NSPopUpButton) {
@@ -105,6 +130,8 @@ struct AppUIHarness {
         let picker: NSPopUpButton=find("savedDevicePicker",in:content,as:NSPopUpButton.self)
         let password: NSSecureTextField=find("serverPassword",in:content,as:NSSecureTextField.self)
         let quality: NSPopUpButton=find("pictureQuality",in:content,as:NSPopUpButton.self)
+        let latency: NSTextField=find("networkLatency",in:content,as:NSTextField.self)
+        expect(latency.isHidden && latency.stringValue == "RTT —","latency is hidden and reset before any connection")
         expect(zoom.itemTitles == ["Auto (Readable)","Fit to Window","50%","75%","100%","125%","150%","200%"],"all supported zoom choices are present")
         expect(zoom.indexOfSelectedItem == 1 && desktop.zoomMode == .fit,"new controller defaults to Fit to Window")
         expect(quality.itemTitles == ["Balanced · fast LAN","Lossless · sharp text","Fast · lower bandwidth","Wi-Fi · high quality"],"four stable picture-quality profiles are available")
@@ -126,10 +153,24 @@ struct AppUIHarness {
         let horizontal: NSScroller=find("desktopHorizontalScroll",in:content,as:NSScroller.self)
         let vertical: NSScroller=find("desktopVerticalScroll",in:content,as:NSScroller.self)
         let sizes=[CGSize(width:860,height:540),CGSize(width:1180,height:760),CGSize(width:860,height:950),CGSize(width:1600,height:560)]
+        let latencySnapshots=[NetworkLatency.unavailable,NetworkLatency(milliseconds:1),NetworkLatency(milliseconds:12),
+                              NetworkLatency(milliseconds:250),NetworkLatency(milliseconds:10000),
+                              NetworkLatency(milliseconds:10000,observedActivityAgeMilliseconds:17000,isIdle:true)]
+        let longConnectionName="Office desktop · "+String(repeating:"wide-server-name-",count:24)+"example.local"
+        func checkLatencyLayouts() {
+            for snapshot in latencySnapshots {
+                controller.testingShowNetworkLatency(snapshot,connectionName:longConnectionName)
+                content.layoutSubtreeIfNeeded()
+                latencyGeometry(content,snapshot:snapshot)
+            }
+            controller.testingShowNetworkLatency(nil,connectionName:"Ready to connect")
+            expect(latency.isHidden && latency.stringValue == "RTT —","clearing synthetic presentation restores the disconnected display")
+        }
         for size in sizes {
             window.setContentSize(size)
             content.layoutSubtreeIfNeeded(); desktop.updateCanvas(); settle()
             geometry(content)
+            checkLatencyLayouts()
             expect(desktop.bounds.width > 100 && desktop.bounds.height > 100,"desktop viewport remains usable at \(size)")
             expect(desktop.frame.width < CGFloat(width) && desktop.frame.height < CGFloat(height),"Metal view stays viewport-sized at \(size)")
             expect(desktop.remoteSize == CGSize(width:width,height:height),"local window resize leaves remote resolution unchanged")
@@ -155,6 +196,7 @@ struct AppUIHarness {
             expect(sidebar.title == "Show settings","collapsed sidebar offers a visible restore action")
             expect(desktop.bounds.width > priorWidth+270,"hiding sidebar expands the desktop viewport")
             geometry(content)
+            checkLatencyLayouts()
             action(#selector(ViewerController.toggleSidebar),on:controller)
             content.layoutSubtreeIfNeeded(); desktop.updateCanvas(); settle()
             expect(controller.isSidebarVisible && sidebar.state == .on,"menu action restores the sidebar")
@@ -293,6 +335,7 @@ struct AppUIHarness {
             let report: [String:Any]=["uiChecks":checks,"windowSizes":sizes.map{"\(Int($0.width))x\(Int($0.height))"},
                 "syntheticRemoteSize":"5120x2880","networkConnections":0,"globalInputEvents":0,
                 "connectionPreferenceCoverage":"Fit/Wi-Fi defaults, four quality profiles, Auto/custom pinch, restart, per-server isolation, unfinished endpoint edits/shutdown, legacy migration",
+                "latencyLayoutCoverage":"unavailable, 1/12/250/>9999 ms and idle; long title; both sidebar states at every window size",
                 "preferenceIsolation":"temporary UserDefaults suite","windowPresentation":"owned, offscreen, non-key",
                 "macOS":ProcessInfo.processInfo.operatingSystemVersionString,"gpu":desktop.device?.name ?? "Unknown"]
             try JSONSerialization.data(withJSONObject:report,options:[.prettyPrinted,.sortedKeys])

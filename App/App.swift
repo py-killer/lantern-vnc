@@ -40,6 +40,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     private let findServers = NSButton(title:"Find…",target:nil,action:nil)
     private let connect = NSButton(title: "Connect", target: nil, action: nil)
     private let status = NSTextField(labelWithString: "Ready to connect")
+    private let latency = NSTextField(labelWithString: "RTT —")
     private let detail = NSTextField(wrappingLabelWithString: "Enter the VNC password set on your TightVNC server.")
     private let quality = NSPopUpButton(frame: .zero, pullsDown: false)
     private let zoom = NSPopUpButton(frame: .zero, pullsDown: false)
@@ -61,6 +62,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     private var timer: Timer?
     private var remoteName = "Remote desktop"
     private var lastFrames = 0
+    private var networkLatency=NetworkLatency.unavailable
     private var connectionSize = NSSize.zero
     private var sidebar: NSView!
     private var sidebarWidth: NSLayoutConstraint!
@@ -191,12 +193,25 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         let main = NSView(); main.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(main)
         NSLayoutConstraint.activate([main.leadingAnchor.constraint(equalTo:side.trailingAnchor),main.trailingAnchor.constraint(equalTo:root.trailingAnchor),main.topAnchor.constraint(equalTo:root.topAnchor),main.bottomAnchor.constraint(equalTo:root.bottomAnchor)])
         let top = NSView(); top.translatesAutoresizingMaskIntoConstraints = false; main.addSubview(top)
+        top.identifier=NSUserInterfaceItemIdentifier("viewerHeader")
         NSLayoutConstraint.activate([top.leadingAnchor.constraint(equalTo:main.leadingAnchor),top.trailingAnchor.constraint(equalTo:main.trailingAnchor),top.topAnchor.constraint(equalTo:main.topAnchor),top.heightAnchor.constraint(equalToConstant:50)])
         status.font = .systemFont(ofSize:13,weight:.medium)
+        status.identifier=NSUserInterfaceItemIdentifier("connectionStatus")
         status.lineBreakMode = .byTruncatingMiddle
         status.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        latency.identifier=NSUserInterfaceItemIdentifier("networkLatency")
+        latency.font = .monospacedDigitSystemFont(ofSize:11,weight:.regular)
+        latency.textColor = .secondaryLabelColor
+        latency.lineBreakMode = .byTruncatingTail
+        latency.isHidden=true
+        latency.toolTip=NetworkLatency.unavailable.toolTip
+        latency.setContentCompressionResistancePriority(.required,for:.horizontal)
         progress.style = .spinning; progress.controlSize = .small; progress.isDisplayedWhenStopped = false
-        let stateStack = NSStackView(views:[progress,status]); stateStack.spacing=8; stateStack.translatesAutoresizingMaskIntoConstraints=false; top.addSubview(stateStack)
+        let statusDetails = NSStackView(views:[status,latency]);statusDetails.orientation = .vertical
+        statusDetails.alignment = .leading;statusDetails.spacing=2
+        status.widthAnchor.constraint(equalTo:statusDetails.widthAnchor).isActive=true
+        let stateStack = NSStackView(views:[progress,statusDetails]);stateStack.spacing=8
+        stateStack.translatesAutoresizingMaskIntoConstraints=false; top.addSubview(stateStack)
         zoom.addItems(withTitles:["Auto (Readable)","Fit to Window","50%","75%","100%","125%","150%","200%"])
         zoom.controlSize = .small; zoom.font = .systemFont(ofSize:12)
         zoom.target=self; zoom.action=#selector(scaleChanged)
@@ -217,6 +232,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         sidebarToggle.identifier=NSUserInterfaceItemIdentifier("sidebarToggleButton")
         sidebarToggle.toolTip="Hide connection sidebar (Control–Command–S)"
         let full = NSButton(image:NSImage(systemSymbolName:"arrow.up.left.and.arrow.down.right",accessibilityDescription:"Full screen")!,target:self,action:#selector(fullScreen))
+        full.identifier=NSUserInterfaceItemIdentifier("fullscreenButton")
         full.bezelStyle = .texturedRounded; full.toolTip="Full screen (Control–Command–F)"
         let tools = NSStackView(views:[sidebarToggle,zoom,hand,full]); tools.spacing=8; tools.translatesAutoresizingMaskIntoConstraints=false; top.addSubview(tools)
         tools.setContentCompressionResistancePriority(.required,for:.horizontal)
@@ -522,6 +538,8 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         next.onConnected = { [weak self,weak next] name,width,height in
             guard let self=self, self.session === next else { return }
             self.connected=true; self.remoteName=name
+            self.networkLatency=next?.networkLatency() ?? .unavailable
+            self.renderNetworkLatency(self.networkLatency,visible:true)
             self.rememberAfterConnection(host:address,port:number,password:passwordToRemember)
             passwordToRemember=nil
             self.connectionSize = NSSize(width:width,height:height)
@@ -550,6 +568,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
             guard let self=self,self.session === next else { return }
             passwordToRemember=nil
             self.connected=false; self.session=nil; self.progress.stopAnimation(nil)
+            self.networkLatency = .unavailable;self.renderNetworkLatency(.unavailable,visible:false)
             self.connect.title="Connect"; self.connect.isEnabled=true; self.connect.keyEquivalent="\r"
             self.baseFields.forEach{$0.isEnabled=true}; self.sessionControls.forEach{$0.isEnabled=false}
             self.loadRememberedPassword()
@@ -673,6 +692,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     }
     private func tick() {
         guard connected else { return }
+        networkLatency=session?.networkLatency() ?? .unavailable
         let current=desktop.framesReceived
         let fps=max(0,current-lastFrames); lastFrames=current
         updateMetrics(fps:fps)
@@ -680,6 +700,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     }
     private func updateMetrics(fps: Int? = nil) {
         guard connected else { return }
+        renderNetworkLatency(networkLatency,visible:true)
         let size = desktop.remoteSize.width > 0 ? desktop.remoteSize : connectionSize
         guard size.width > 0, size.height > 0 else { return }
         let percentage=max(1,Int((desktop.displayScale * 100).rounded()))
@@ -693,6 +714,16 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         let rate = showFrameRate && fps != nil ? " · \(fps!) fps" : ""
         metrics.stringValue = "\(Int(size.width))×\(Int(size.height)) · \(scaling)\(navigation)\(rate) · Metal"
     }
+    private func renderNetworkLatency(_ snapshot: NetworkLatency,visible: Bool) {
+        latency.stringValue=snapshot.title;latency.toolTip=snapshot.toolTip;latency.isHidden = !visible
+    }
+#if APP_UI_HARNESS
+    func testingShowNetworkLatency(_ snapshot: NetworkLatency?,connectionName: String?=nil) {
+        if let connectionName=connectionName { status.stringValue=connectionName }
+        renderNetworkLatency(snapshot ?? .unavailable,visible:snapshot != nil)
+        window?.contentView?.layoutSubtreeIfNeeded()
+    }
+#endif
     @objc func toggleFrameRate(_ sender: NSMenuItem) {
         defaults.set(!showFrameRate,forKey:"showFrameRate")
         sender.state = showFrameRate ? .on : .off

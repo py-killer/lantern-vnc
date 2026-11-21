@@ -23,6 +23,10 @@ static void on_connected(void *context, const char *name, int width, int height)
     State *s = context;
     assert(name && strstr(name, "integration"));
     assert(width == (s->slow_large ? 4096 : 4) && height == (s->slow_large ? 2 : 3));
+    vncv_network_rtt network;
+    int has_rtt = vncv_get_network_rtt(s->client, &network);
+    assert(has_rtt == network.available);
+    if (has_rtt) assert(network.rtt_ms > 0 && network.observed_activity_age_ms < 1000 && !network.stale);
     pthread_mutex_lock(&s->lock);
     s->connected++;
     pthread_cond_broadcast(&s->changed);
@@ -206,13 +210,16 @@ int main(int argc, char **argv) {
     vncv_callbacks callbacks = {on_connected, on_frame, on_clipboard, on_disconnected};
     s.client = vncv_create(callbacks, &s);
     assert(s.client);
+    vncv_network_rtt network;
+    assert(!vncv_get_network_rtt(s.client, &network) && !network.available);
     assert(!vncv_start(s.client, "", port, "", 0, -1));
     assert(!vncv_key(s.client, 'x', 1));
     assert(!vncv_start(s.client, "127.0.0.1", 0, "", 0, -1));
     assert(!vncv_start_with_options(s.client, "127.0.0.1", port, "", 0, 8, -1));
     assert(!vncv_start_with_options(s.client, "127.0.0.1", port, "", 0, 8, 10));
     assert(!vncv_is_running(s.client));
-    for (int iteration = 0; iteration < 5; iteration++) {
+    int iterations = !strcmp(scenario, "rtt-idle") ? 1 : 5;
+    for (int iteration = 0; iteration < iterations; iteration++) {
         s.connected = s.frames = s.clipboard = s.disconnected = s.intentional = 0;
         s.reason[0] = 0;
         int started = use_options ?
@@ -220,7 +227,22 @@ int main(int argc, char **argv) {
             vncv_start(s.client, "127.0.0.1", port, "mock-password", s.view_only, quality);
         assert(started);
         assert(!vncv_start(s.client, "127.0.0.1", port, "", 0, -1));
-        if (s.slow) {
+        if (!strcmp(scenario, "rtt-idle")) {
+            await_frames(&s, 1);
+            usleep(250000); /* Let the ordinary RFB messages/ACKs settle. */
+            int available = vncv_get_network_rtt(s.client, &network);
+            assert(available && network.available && network.rtt_ms > 0 && !network.stale);
+            double deadline = now() + 7;
+            while (!network.stale && now() < deadline) {
+                usleep(10000);
+                assert(vncv_get_network_rtt(s.client, &network));
+            }
+            assert(network.stale && network.observed_activity_age_ms >= 5000);
+            printf("PASS: passive existing-connection TCP RTT %.0f ms; unchanged traffic becomes idle after %.0f ms\n",
+                   network.rtt_ms, network.observed_activity_age_ms);
+            vncv_stop(s.client); vncv_wait(s.client);
+            assert(s.intentional && s.frames == 1);
+        } else if (s.slow) {
             await_frames(&s, 1);
             /* The next incremental update has a header and first pixel, with
                its remaining bytes deliberately withheld for 900 ms. */
@@ -269,11 +291,14 @@ int main(int argc, char **argv) {
         }
         assert(s.disconnected == 1);
         assert(!vncv_is_running(s.client));
+        memset(&network, 0xff, sizeof(network));
+        assert(!vncv_get_network_rtt(s.client, &network));
+        assert(!network.available && network.rtt_ms == 0 && network.observed_activity_age_ms == 0 && !network.stale);
     }
     vncv_stop(s.client);
     vncv_destroy(s.client);
     pthread_cond_destroy(&s.changed);
     pthread_mutex_destroy(&s.lock);
-    printf("PASS: %s, five repeated sessions\n", scenario);
+    printf("PASS: %s, %d repeated sessions\n", scenario, iterations);
     return 0;
 }

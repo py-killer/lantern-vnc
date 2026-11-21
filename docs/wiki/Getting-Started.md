@@ -21,6 +21,8 @@ The downloadable app does not need Xcode, Python, CMake, or a Lantern account. D
 
 If the connection fails, check the [troubleshooting guide](Troubleshooting.md). Repeatedly trying a different password cannot fix an unreachable server or a blocked port.
 
+Once connected, **RTT** appears below the connection status and refreshes once a second. It is a passive TCP round-trip estimate, not keyboard-to-screen delay. A dash means no usable estimate; **idle** means no traffic-counter change was observed for five seconds. Hover over it for the explanation, including local port-forwarding limits. See [Read network RTT](Display-and-Navigation.md#read-network-rtt).
+
 ## Find a local server
 
 Search checks one selected TCP port on active private IPv4 Wi-Fi/Ethernet interfaces. Choose the network in the picker if more than one is available. It respects the subnet mask; for a subnet larger than `/24`, only the local `/24` neighborhood is searched. You can cancel, retry, or select a result as it appears. The search reads a VNC greeting and sends no authentication or credentials.
@@ -47,4 +49,4 @@ Lantern remembers zoom mode—including a custom pinch scale—and picture prese
 
 Choose **Disconnect** when finished. **Command–K** connects or disconnects, **Control–Command–F** toggles full screen, and **Control–Command–S** shows/hides the connection sidebar. See the [display guide](Display-and-Navigation.md) for zoom and Hand controls.
 
-These controls are implemented in 1.1.0-preview.5. It remains a preview while physical display transitions and the manual hardware matrix are unverified.
+These controls are implemented in 1.1.0-preview.6. It remains a preview while physical display transitions and the manual hardware matrix are unverified.

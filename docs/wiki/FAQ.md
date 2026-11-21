@@ -22,7 +22,7 @@ It does not search VPN interfaces, IPv6, Bonjour, public IPv4 networks, or every
 
 ## Why does 100% look small on my Retina screen?
 
-In 1.1.0-preview.5, a new endpoint starts in **Fit to Window**, which shows the whole desktop but can make text tiny on a 5K server. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use scroll bars or Hand to navigate.
+In 1.1.0-preview.6, a new endpoint starts in **Fit to Window**, which shows the whole desktop but can make text tiny on a 5K server. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use scroll bars or Hand to navigate.
 
 At 100%, one remote pixel maps to one drawable/backing pixel, rather than one Mac point. The final appearance also depends on macOS display scaling. These controls change only the local view, not the remote resolution or the number of remote pixels requested. See [Display and navigation](Display-and-Navigation.md).
 
@@ -43,6 +43,12 @@ JPEG levels are protocol settings, not percentages; the server decides how to en
 
 Its dirty-region optimization reduces local CPU copying and GPU texture updates for small changes. It preserves the decoded pixels, picture preset, and server resolution. It does not change the requested VNC encodings or compression levels, so this local optimization makes no claim of smaller network transfers. Queued input can be serviced while a fragmented screen update waits for more bytes; network and server delays can still dominate. The recorded copy benchmark measures local CPU work, not Wi-Fi or end-to-end performance.
 
+## What does the RTT number measure?
+
+It is macOS's passive, smoothed TCP round-trip estimate for the connected TCP peer, refreshed in the interface once per second. It excludes input-to-screen delay. Slow capture, encoding, decoding, or rendering can still make a desktop lag when RTT is low. With a local SSH port forward or TCP proxy, it can measure the forwarding endpoint rather than the remote computer.
+
+A dash means no usable estimate; **idle** appears after five seconds without an observed traffic-counter change. Activity age is not RTT sample age, and polling does not force a new sample. The indicator sends no extra probes, input, or frame-update requests, collects no analytics, and does not change picture quality. See [Read network RTT](Display-and-Navigation.md#read-network-rtt) for details and primary references.
+
 ## Does Lantern remember zoom and picture settings?
 
 Yes. Fit, Auto, an explicit percentage, or custom pinch zoom and the picture preset are saved per host and TCP port, including across app restarts. Pan positions are not remembered. Changing the host or port selects a different endpoint's preferences. Upgrading imports the old global picture setting once for existing saved devices; a new endpoint uses Fit and Wi-Fi · high quality.
@@ -53,7 +59,7 @@ With Hand off, wheel/trackpad scrolling is sent to the remote computer. Turn on 
 
 ## Is the new navigation release fully verified?
 
-1.1.0-preview.5 is an early-access release with the new controls implemented. Physical 1× external/2× Retina transitions, monitor disconnect/reconnect, and the complete manual hardware matrix remain unverified. Read the [release checklist](../RELEASE_CHECKLIST.md) before treating it as a stable release.
+1.1.0-preview.6 is an early-access release with the new controls implemented. Physical 1× external/2× Retina transitions, monitor disconnect/reconnect, and the complete manual hardware matrix remain unverified. Read the [release checklist](../RELEASE_CHECKLIST.md) before treating it as a stable release.
 
 ## Does resizing Lantern change the remote resolution?
 

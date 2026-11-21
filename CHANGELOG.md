@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0-preview.6 — 2026-11-21
+
+- Show an **RTT** line beneath the connection status while connected, refreshed once per second from macOS's passive smoothed TCP estimate. Missing or zero estimates display a dash.
+- Mark the estimate **idle** after five seconds without an observed transport-counter change. Activity age describes observed traffic, not the age of the kernel's RTT sample.
+- Keep the scope clear: RTT is to the TCP peer, which can be a local forwarding endpoint. It excludes input-to-screen latency; slow capture, encoding, decoding, and rendering can coexist with low RTT.
+- Add no diagnostic probes, synthetic input, screen-update requests, or analytics. Preserve picture presets, decoded pixel quality, and the Preview 5 rendering path.
+- Remain an ad hoc signed preview with physical external-display transitions, the full manual hardware matrix, Developer ID signing, and notarization pending.
+
 ## 1.1.0-preview.5 — 2026-11-21
 
 - Copy decoded dirty regions into one owned image and update only the changed texture regions. Keep independent accumulated changes for each display buffer, with generation checks around resize and clear. The production upload path avoids an extra packed-image snapshot.

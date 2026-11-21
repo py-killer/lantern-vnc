@@ -70,7 +70,7 @@
   }
   function sanitizedPath() {
     const name = window.location.pathname.split("/").filter(Boolean).pop() || "";
-    if (["stats.html", "privacy.html"].includes(name)) return `/lantern-vnc/${name}`;
+    if (["privacy.html", "mac-vnc-client.html", "occasional-vnc-access.html"].includes(name)) return `/lantern-vnc/${name}`;
     return "/lantern-vnc/";
   }
   function referrerOrigin() {

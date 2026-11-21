@@ -12,7 +12,7 @@ launch thread.
 
 | Topic | Wording supported by the current project |
 | --- | --- |
-| Release | [1.1.0-preview.1](https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.2), a preview, not a stable release. |
+| Release | [1.1.0-preview.2](https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0-preview.2), a preview, not a stable release. |
 | Platform | Apple Silicon, arm64, macOS 13+. No Intel build. |
 | App | Native AppKit interface and Metal renderer; connects directly to an existing VNC server. Built around TightVNC use. |
 | Access | Free current version, no app account, subscription, expiry, or feature unlock. Optional support does not affect access. |
@@ -36,40 +36,13 @@ Release/downloads: <https://github.com/py-killer/lantern-vnc/releases/tag/v1.1.0
 Source/issues: <https://github.com/py-killer/lantern-vnc>
 Wiki: <https://py-killer.github.io/lantern-vnc/wiki/>
 
-## Show HN
+## Hacker News: human-only participation
 
-Read the [official Show HN guidelines](https://news.ycombinator.com/showhn.html)
-before submitting. Show HN is for a usable project the submitter personally
-worked on and is ready to discuss. A landing page, fundraiser, or small
-version announcement alone does not qualify. The submitter should decide
-honestly whether this work meets that standard; AI assistance is not a
-reason to invent personal effort or history. Link to the runnable project
-and source, make trying it straightforward, and never coordinate votes.
-
-**Draft title:** Show HN: Lantern VNC — a free native VNC viewer for Apple Silicon
-
-**Submission URL:** <https://github.com/py-killer/lantern-vnc>
-
-**Draft first comment:**
-
-> I wanted a small native Mac viewer for an existing TightVNC server, with
-> direct connections and no app account or subscription. Lantern uses AppKit
-> and Metal, with LibVNCClient for the protocol and libjpeg-turbo for JPEG.
->
-> The current preview adds a fixed viewport, readable Auto zoom, visible
-> scrollbars, and a Hand mode for navigating a large remote desktop. There
-> are view-only and optional text clipboard controls, plus three saved
-> destinations. It is GPL-2.0-or-later and requires an Apple Silicon Mac on
-> macOS 13+.
->
-> This was developed with substantial AI assistance. Source and synthetic
-> test evidence are public. It is an early preview: the full physical display
-> matrix is not verified, the download is not Apple-notarized, and it does
-> not encrypt VNC or include a tunnel. Use a trusted network or an existing
-> VPN/SSH tunnel. I would value concrete reports about navigation, display
-> changes, and input behavior.
+The [current official HN guidelines](https://news.ycombinator.com/newsguidelines.html) prohibit generated or AI-edited text and automated posting. The earlier AI draft has been removed. Do not post, lightly rewrite, or automate an AI-authored HN submission or comment. Only the human owner may independently decide to participate and write their own contribution, following the live rules. HN must not be used primarily for promotion.
 
 ## r/macapps
+
+**Not ready for posting:** the App Pile also requires Problem–Comparison–Pricing, two researched competitors with honest tradeoffs, and a website link. The old draft below lacks that complete comparison; it is reference material only. Follow the current [November App Pile](https://www.reddit.com/r/macapps/comments/1xks9uj/megathread_the_app_pile_november_2026/) instructions if preparing a future human-reviewed entry.
 
 Rules checked on 20 November 2026 in the community's [published rules](https://www.reddit.com/r/macapps/).
 Recheck before posting. Its main feed currently requires account eligibility
@@ -93,7 +66,7 @@ do not present this draft as ready for an unrestricted main-feed post.
 > Pricing: the current version is free, with no app account, subscription,
 > expiry, or paid unlock. Requirements: Apple Silicon and macOS 13+.
 >
-> It is **1.1.0-preview.1**, not a stable release. The download is ad hoc
+> It is **1.1.0-preview.2**, not a stable release. The download is ad hoc
 > signed and not Apple-notarized. VNC transport is unencrypted; use a trusted
 > LAN or a separate secure tunnel. Physical display-transition testing remains
 > open. No Intel support, audio, or file transfer.
@@ -134,7 +107,7 @@ tool/Wednesday rules before considering a standalone post.
 > **Deployment:** Download the macOS app, not a Docker image. Requires macOS
 > 13+ and Apple Silicon; configure your own reachable VNC server separately.
 > Source and setup docs are included. The current release is
-> **1.1.0-preview.1**, ad hoc signed and not Apple-notarized. It does not encrypt
+> **1.1.0-preview.2**, ad hoc signed and not Apple-notarized. It does not encrypt
 > VNC or create a secure tunnel, so use a trusted network or a separately
 > established VPN/SSH tunnel. No audio or file transfer; physical display
 > transitions still need manual testing.
@@ -183,13 +156,18 @@ destination rules and account eligibility, choose the required venue/flair,
 and arrange to answer questions. Keep a link to any published post to avoid
 duplicate promotion. These checks do not themselves authorize publication.
 
-## Trackable launch links
+## Trackable launch links (unpublished outside GitHub)
 
 Use one source label for each permitted post; keep campaign values free of personal details.
 
 - GitHub announcement: https://py-killer.github.io/lantern-vnc/?utm_source=github&utm_medium=community&utm_campaign=preview2
-- HN draft: https://py-killer.github.io/lantern-vnc/?utm_source=hackernews&utm_medium=community&utm_campaign=preview2
 - macapps App Pile draft: https://py-killer.github.io/lantern-vnc/?utm_source=reddit_macapps&utm_medium=community&utm_campaign=preview2
 - selfhosted megathread draft: https://py-killer.github.io/lantern-vnc/?utm_source=reddit_selfhosted&utm_medium=community&utm_campaign=preview2
 
 These links count only visits that allow automatic website counts. The private owner dashboard is at https://lantern-vnc-mac.fts227.chatgpt.site/admin ; it is not part of the customer website navigation.
+
+## Scope chosen on 21 November 2026
+
+The owner selected **search visibility only for now**. Improve owned GitHub Pages content, structured metadata, internal links, sitemap and GitHub repository discovery. No recurring public-opportunity check, external recommendation reply, directory submission or additional social post is enabled by this search-only task. The earlier GitHub launch announcement is already published at https://github.com/py-killer/lantern-vnc/discussions/1 .
+
+Search intent: a free VNC client for an Apple Silicon Mac, direct access to an existing server, and occasional/temporary tasks without another viewer account. Do not describe Lantern as zero-setup internet support, a RealVNC cloud-session replacement, an Intel/iOS/Windows client, an encrypted transport, or a stable/notarized release.

@@ -1,6 +1,9 @@
-# Lantern VNC 1.1.0-preview.2
+# Lantern VNC — free VNC client for Mac
 
-A free native VNC viewer for Apple Silicon Macs, built with AppKit and Metal.
+**Current release: 1.1.0-preview.2 · Apple Silicon · macOS 13+**
+
+A free native VNC client for Apple Silicon Macs, built with AppKit and Metal.
+Use it for an occasional remote task or regular direct access to your existing VNC server.
 Connect directly to a TightVNC server, view its desktop, and control it with
 your Mac's keyboard and mouse. No browser, account, subscription, or license
 key is required. This version has no expiry, trial clock, license check, or
@@ -13,6 +16,8 @@ complete manual hardware matrix have not been verified. Treat this as a
 preview, not a fully checked stable release.
 
 [Project website](https://py-killer.github.io/lantern-vnc/) ·
+[Mac VNC client guide](https://py-killer.github.io/lantern-vnc/mac-vnc-client.html) ·
+[Occasional-access guide](https://py-killer.github.io/lantern-vnc/occasional-vnc-access.html) ·
 [Source repository](https://github.com/py-killer/lantern-vnc) ·
 [Community and feedback](COMMUNITY.md) ·
 [Wiki](docs/wiki/Home.md) · [Changelog](CHANGELOG.md) ·

@@ -22,5 +22,5 @@ cp "$PROJECT_DIR/vendor/libvncserver/COPYING" "$APP_DIR/Contents/Resources/Licen
 cp "$PROJECT_DIR/vendor/libjpeg-turbo/LICENSE.md" "$APP_DIR/Contents/Resources/Licenses/libjpeg-turbo.txt"
 cp "$PROJECT_DIR/vendor/libjpeg-turbo/README.ijg" "$APP_DIR/Contents/Resources/Licenses/IJG.txt"
 if [[ -f "$PROJECT_DIR/App/AppIcon.icns" ]]; then cp "$PROJECT_DIR/App/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"; fi
-codesign --force --sign - --identifier local.lantern.vnc "$APP_DIR"
+python3 "$PROJECT_DIR/scripts/finalize-app-signature.py" "$APP_DIR"
 echo "$APP_DIR"

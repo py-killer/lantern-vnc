@@ -25,12 +25,20 @@ struct BrowserHarness {
         checks += 1;guard value() else { fatalError("Browser harness: \(label)") }
     }
     private static func settle(_ interval: TimeInterval=0.02) { RunLoop.current.run(until:Date(timeIntervalSinceNow:interval)) }
-    private static func wait(_ label:String,timeout:TimeInterval=10,until ready:()->Bool) {
+    private static func wait(_ label:String,timeout:TimeInterval=10,diagnostics:(()->String)?=nil,until ready:()->Bool) {
         let limit=Date(timeIntervalSinceNow:timeout)
         while !ready() && Date() < limit { settle() }
-        expect(ready(),label)
+        let passed=ready()
+        expect(passed,passed ? label : label+" ["+(diagnostics?() ?? "deadline expired")+"]")
     }
     private static func views(_ view:NSView)->[NSView] { [view]+view.subviews.flatMap(views) }
+    private static func serverSaw(_ path:String,events:String)->Bool {
+        guard let text=try? String(contentsOfFile:events,encoding:.utf8) else { return false }
+        return text.split(separator:"\n").contains { line in
+            guard let data=String(line).data(using:.utf8),let row=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any] else { return false }
+            return row["path"] as? String == path
+        }
+    }
     private static func find<T:NSView>(_ id:String,in pane:BrowserScreenPane,as type:T.Type)->T {
         guard let result=views(pane).first(where:{$0.identifier?.rawValue == id}) as? T else { fatalError("Missing browser control \(id)") }
         return result
@@ -122,7 +130,8 @@ struct BrowserHarness {
         expect(window.invisibleSheets-originalSheets == 5,"all foreground dialogs were hidden before native presentation")
     }
     static func main() throws {
-        guard CommandLine.arguments.count == 3,let base=URL(string:CommandLine.arguments[1]) else { exit(2) }
+        guard CommandLine.arguments.count == 4,let base=URL(string:CommandLine.arguments[1]) else { exit(2) }
+        let fixtureEvents=CommandLine.arguments[3]
         guard !NSScreen.screens.isEmpty else {
             fputs("NOT RUN: browser integration needs WindowServer access (exit 77).\n",stderr);exit(77)
         }
@@ -299,6 +308,51 @@ struct BrowserHarness {
         wait("owned recovery fixture is ready") { armed }
         click("browserRetry",in:first)
         wait("Retry recovers the failed page") { first.webView.title == "Fixture Recovered" && !first.webView.isLoading && !first.hasError }
+        let privateMarker="synthetic-private-token"
+        for (code,category) in [(NSURLErrorCannotFindHost,"DNS"),(NSURLErrorDNSLookupFailed,"DNS"),
+                               (NSURLErrorNotConnectedToInternet,"offline"),(NSURLErrorNetworkConnectionLost,"interrupted"),
+                               (NSURLErrorTimedOut,"too long"),(NSURLErrorCannotConnectToHost,"server or network"),
+                               (NSURLErrorSecureConnectionFailed,"HTTPS certificate"),(NSURLErrorServerCertificateUntrusted,"HTTPS certificate"),
+                               (NSURLErrorAppTransportSecurityRequiresSecureConnection,"HTTPS address")] {
+            let failure=NSError(domain:NSURLErrorDomain,code:code,userInfo:[
+                NSLocalizedDescriptionKey:"Never echo "+privateMarker,
+                NSURLErrorFailingURLStringErrorKey:"https://sensitive.invalid/private?token="+privateMarker])
+            first.webView(first.webView,didFailProvisionalNavigation:nil,withError:failure)
+            let message:NSTextField=find("browserError",in:first,as:NSTextField.self)
+            expect(first.hasError && message.stringValue.contains(category),"native network failure presents its actionable category: \(category)")
+            expect(!message.stringValue.contains(privateMarker) && !message.stringValue.contains("sensitive.invalid") && window.attachedSheet == nil,
+                   "network failure never exposes private URL/description data or creates a sheet")
+        }
+        first.load(base.appendingPathComponent("recover"))
+        wait("synthetic network error states recover through the same selected tab") { first.webView.title == "Fixture Recovered" && !first.webView.isLoading && !first.hasError }
+        let retainedTab=first.selectedTabID,retainedView=first.webView
+        guard let stalledA=first.addTab(url:base.appendingPathComponent("stall-a")) else { fatalError("Owned stalled tab A missing") }
+        let stalledViewA=first.webView
+        let reloadControl:NSButton=find("browserReload",in:first,as:NSButton.self)
+        wait("server-confirmed stalled navigation A exposes Stop") { serverSaw("/stall-a",events:fixtureEvents) && stalledViewA.isLoading && reloadControl.toolTip == "Stop loading website" }
+        guard let stalledB=first.addTab(url:base.appendingPathComponent("stall-b")) else { fatalError("Owned stalled tab B missing") }
+        let stalledViewB=first.webView
+        wait("server-confirmed stalled navigation B loads independently") { serverSaw("/stall-b",events:fixtureEvents) && stalledViewB.isLoading && reloadControl.toolTip == "Stop loading website" }
+        first.selectTab(id:stalledA)
+        expect(stalledViewB.isLoading && reloadControl.accessibilityLabel() == "Stop loading website","switching tabs points Stop at the selected loading page")
+        click("browserReload",in:first)
+        wait("Stop cancels the selected stalled navigation",diagnostics:{"A loading=\(stalledViewA.isLoading),B loading=\(stalledViewB.isLoading),control=\(reloadControl.toolTip ?? "nil")"}) { !stalledViewA.isLoading && reloadControl.toolTip == "Reload website" }
+        expect(stalledViewB.isLoading && first.currentURL?.path == "/stall-a" && !first.hasError,
+               "stopping A preserves its retry address and does not stop loading B or invent a network error")
+        first.selectTab(id:stalledB)
+        expect(reloadControl.toolTip == "Stop loading website","selecting still-loading B restores its own Stop state")
+        click("browserReload",in:first)
+        wait("Stop also cancels selected B without replacing either tab") { !stalledViewB.isLoading && reloadControl.toolTip == "Reload website" }
+        expect(!stalledViewA.isLoading && first.currentURL?.path == "/stall-b","tab-specific Stop preserves both independent addresses")
+        var released=false
+        URLSession.shared.dataTask(with:base.appendingPathComponent("release-stalls")) { _,_,_ in DispatchQueue.main.async { released=true } }.resume()
+        wait("owned stalled responses are released") { released }
+        first.selectTab(id:stalledA);click("browserReload",in:first)
+        wait("Reload retries A's canceled provisional destination") { first.webView.title == "Fixture Stall A" && !first.webView.isLoading && !first.hasError }
+        first.selectTab(id:stalledB);click("browserReload",in:first)
+        wait("Reload retries B's own canceled destination") { first.webView.title == "Fixture Stall B" && !first.webView.isLoading && !first.hasError }
+        first.closeTab(id:stalledB);first.closeTab(id:stalledA);first.selectTab(id:retainedTab)
+        expect(first.webView === retainedView && first.webView.title == "Fixture Recovered","stopping/retrying other tabs preserves the original live page")
         let restoreTabs=[BrowserTab(id:UUID().uuidString,title:"Unvisited",url:base.appendingPathComponent("one").absoluteString),
                          BrowserTab(id:UUID().uuidString,title:"Selected",url:base.appendingPathComponent("two").absoluteString)]
         let restored=BrowserScreenPane(screen:BrowserScreen(id:UUID().uuidString,title:"Restored window",tabs:restoreTabs,selectedTabID:restoreTabs[1].id),loadImmediately:false,dataStore:dataStore)
@@ -336,6 +390,7 @@ struct BrowserHarness {
             "foregroundJavaScriptDialogs":"alert acknowledgement, confirm accept/cancel, prompt accept/cancel; owned invisible sheets and synthetic text",
             "foregroundPolicySimulation":"test-window isKeyWindow override only; no app activation or global input",
             "tabs":"independent WebKit/history, lazy restoration, selected persistence callback, keyboard/new/close,12-tab bound, last-tab blank",
+            "navigationControl":"Reload/Stop selected-tab isolation; canceled provisional destination retry; sanitized DNS/offline/timeout/TLS/ATS messages",
             "popups":"target-blank and window.open stay in browser window; child opener/postMessage verified; inactive source preserves selection/focus",
             "macOS":ProcessInfo.processInfo.operatingSystemVersionString]
         try JSONSerialization.data(withJSONObject:report,options:[.prettyPrinted,.sortedKeys]).write(to:URL(fileURLWithPath:CommandLine.arguments[2]))

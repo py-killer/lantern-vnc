@@ -1,0 +1,10 @@
+{
+  "checks": 39,
+  "credentials": "injected empty fake",
+  "externalBrowserTypes": 2,
+  "globalInputEvents": 0,
+  "profileAccess": "none",
+  "realBrowserLaunches": 0,
+  "scope": "owned invisible controller and fake launcher; no external website requests or VNC sockets",
+  "webKitViewsForExternalCards": 0
+}

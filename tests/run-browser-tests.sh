@@ -36,7 +36,7 @@ try:
         if server.poll()==77:
             print('NOT RUN: this environment blocks owned loopback HTTP listeners (exit77).');sys.exit(77)
         raise RuntimeError('Owned HTTP fixture did not start')
-    result=subprocess.run([str(binary),json.loads(info.read_text())['url'],str(report)],timeout=120)
+    result=subprocess.run([str(binary),json.loads(info.read_text())['url'],str(report),str(events)],timeout=120)
     sys.exit(result.returncode)
 finally:
     if server.poll() is None: server.terminate()

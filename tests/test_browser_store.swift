@@ -177,6 +177,23 @@ struct BrowserStoreTests {
         expect(BrowserScreenStore(defaults:otherDefaults).screens == recovered.screens,"recovered selection and cleaned tabs are stable across subsequent restarts")
         recovered.remove(id:legacyID)
         expect(BrowserScreenStore(defaults:otherDefaults).screens.isEmpty,"removing a tabbed workspace removes every saved internal tab")
+        let chrome=try recovered.add(title:"My Chrome",url:"https://example.com/?q=synthetic#part",browserBundleIdentifier:"com.google.Chrome")
+        let safari=try recovered.add(title:"My Safari",url:"https://www.baidu.com/",browserBundleIdentifier:"com.apple.Safari")
+        expect(chrome.browserBundleIdentifier == "com.google.Chrome" && safari.browserBundleIdentifier == "com.apple.Safari","Installed-browser kinds remain distinct")
+        expect(BrowserScreenStore(defaults:otherDefaults).screens == recovered.screens,"Browser choices, aliases and full URLs survive restart")
+        let editedChrome=try recovered.update(id:chrome.id,title:"Named Chrome",url:"https://example.com/changed")!
+        expect(editedChrome.browserBundleIdentifier == chrome.browserBundleIdentifier,"Editing URL and alias preserves actual browser choice")
+        do { _=try recovered.add(title:"Unknown",url:"https://example.com",browserBundleIdentifier:"other.browser");fatalError("Unknown browser accepted") }
+        catch BrowserScreenError.unsupportedBrowser { checks += 1 }
+        do { _=try recovered.add(title:"Blank Chrome",tabs:[newTab],selectedTabID:newTab.id,browserBundleIdentifier:"com.google.Chrome");fatalError("Blank external browser accepted") }
+        catch BrowserScreenError.invalidURL { checks += 1 }
+        do { _=try recovered.updateTabs(id:chrome.id,tabs:[newTab],selectedTabID:newTab.id);fatalError("Blank external update accepted") }
+        catch BrowserScreenError.invalidURL { checks += 1 }
+        expect(recovered.screens.first{$0.id == chrome.id} == editedChrome,"Invalid external update is atomic")
+        let corruptExternal=BrowserScreen(id:UUID().uuidString,title:"Corrupt external",tabs:[newTab],selectedTabID:newTab.id,browserBundleIdentifier:"com.apple.Safari")
+        otherDefaults.set(try JSONEncoder().encode([editedChrome,corruptExternal,safari]),forKey:"browserScreens.v1")
+        let externalRecovered=BrowserScreenStore(defaults:otherDefaults)
+        expect(externalRecovered.screens.map{$0.id} == [chrome.id,safari.id],"Corrupt external blank cannot become an embedded browser or discard valid neighbors")
         print("PASS: \(checks) browser-card persistence, URL validation, resource bounds and isolation checks")
     }
 }

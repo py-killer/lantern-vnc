@@ -1,0 +1,17 @@
+{
+  "certificateSHA1": "92c366cdd793fd085ac837fbb4e53b9a933d5a35",
+  "files": {
+    "Contents/Info.plist": "45d939ea3cedbb739000484a6b3e5f7a09a683919cb841b749256eefd9787b3e",
+    "Contents/MacOS/LanternCredentialVault": "f0d57d4de6aee49149223dbe42c230dea6839a5027ba2e9ece7b3c9126d5da08",
+    "Contents/_CodeSignature/CodeResources": "6686de10a28a2fe11b36cbb86dcbacc827cfc4ea116b4dabf1845e5aee629e9b"
+  },
+  "helperCDHash": "216b40c3269e62b6ac13a6db91109f224d9711fe",
+  "signerArchiveSHA256": "d1a532150adaf90048260d76359261aa716abafc45c53c5dc18845029184334a",
+  "signerVersion": "rcodesign0.29.0",
+  "sourceInputs": [
+    "App/VaultProtocol.swift",
+    "App/PasswordStore.swift",
+    "native/credential-vault/main.swift"
+  ],
+  "sourceSHA256": "d28ca9b615dd9d70a6ba1ee0b6a01bd6d51acc2b40a67765b442c53a0aa2daf0"
+}

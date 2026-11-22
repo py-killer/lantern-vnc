@@ -71,6 +71,9 @@ final class ScreenCardView: NSControl {
         update(title:title,status:kind == .computer ? "Saved computer" : "Saved page",image:nil,selected:false)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    func setPreviewPlaceholder(_ text:String) {
+        if placeholder.stringValue != text { placeholder.stringValue=text }
+    }
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { isEnabled }
     override var wantsUpdateLayer: Bool { true }

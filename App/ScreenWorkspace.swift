@@ -49,9 +49,13 @@ final class WorkspaceComputer {
     var preview: NSImage?
     var sampledAt: TimeInterval?
     var credentialNote: String?
+    // Metadata only: pending user opt-in or an already confirmed saved read.
+    // No authenticated plaintext is retained for later checkbox changes.
+    var remembersPassword: Bool
 
-    init(host: String, port: UInt16, name: String, previewInterval: TimeInterval = 10) {
+    init(host: String, port: UInt16, name: String, previewInterval: TimeInterval = 10, remembersPassword: Bool = false) {
         self.host = host; self.port = port; self.name = name
+        self.remembersPassword=remembersPassword
         sampler=ScreenPreviewSampler(minimumInterval:previewInterval)
         key = Self.key(host: host, port: port)
     }

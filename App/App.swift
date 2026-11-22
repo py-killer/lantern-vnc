@@ -2,6 +2,7 @@
 import AppKit
 import MetalKit
 import UniformTypeIdentifiers
+import WebKit
 
 private final class SidebarDocument: NSView {
     override var isFlipped: Bool { true }
@@ -25,6 +26,35 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     private var lastObservedZoom: DesktopZoomMode = .fit
     private let devices: DeviceStore
     private let passwordStore: PasswordStorage
+    private let browserStore: BrowserScreenStore
+    private var computers: [String: WorkspaceComputer] = [:]
+    private var computerImages: [String: NSImage] = [:]
+    private var computerSampleTimes: [String: TimeInterval] = [:]
+    private var computerMessages: [String: String] = [:]
+    private lazy var frameRouter = ScreenFrameRouter { [weak desktop] bytes,width,height,stride,dirty in
+        desktop?.receive(bytes,width:width,height:height,stride:stride,dirty:dirty)
+    }
+    private let cards = NSStackView()
+    private var computerCards: [String: ScreenCardView] = [:]
+    private var browserCards: [String: ScreenCardView] = [:]
+    private var cardOrder: [String] = []
+    private let workspaceNotice = NSTextField(wrappingLabelWithString: "")
+    private let addScreen = NSPopUpButton(frame: .zero, pullsDown: true)
+    private let settingsDisclosure = NSButton(title: "Connection settings", target: nil, action: nil)
+    private var settingsGroup: NSStackView!
+    private var vncPane: NSView!
+    private var webHost: NSView!
+    private var selectedBrowserID: String?
+    private var browserPanes: [String: BrowserScreenPane] = [:]
+    private lazy var browserWebsiteDataStore: WKWebsiteDataStore = remembersWindowFrame ? .default() : .nonPersistent()
+    private var browserImages: [String: NSImage] = [:]
+    private var browserSampleTimes: [String: TimeInterval] = [:]
+    private var browserAttemptTimes: [String: TimeInterval] = [:]
+    private var browserUse: [String: Int] = [:]
+    private var browserUseSequence = 0
+    private var menuBrowserActive: Bool?
+    private var browserSnapshotInFlight: [String: UUID] = [:]
+    private let maximumLoadedBrowsers = 6
     private var credentialEndpoint: String?
     private var discoveryController: VNCDiscoveryController?
     private var pendingAlias: (endpoint:String,name:String)?
@@ -71,6 +101,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     private var baseFields: [NSControl] = []
     private var showFrameRate: Bool { defaults.bool(forKey: "showFrameRate") }
     var isSidebarVisible: Bool { !sidebarHidden }
+    var isBrowserActive: Bool { selectedBrowserID != nil }
     var isHandActive: Bool { desktop.panMode }
     var canMoveView: Bool { connected && desktop.canPan }
 
@@ -80,6 +111,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         connectionPreferences=ConnectionPreferencesStore(defaults:preferences)
         devices=DeviceStore(defaults:preferences)
         self.passwordStore=passwordStore
+        browserStore=BrowserScreenStore(defaults:preferences)
         desktop = try MetalDesktop(renderer: ())
         guard desktop.device != nil else { throw NSError(domain: "LanternVNC", code: 1, userInfo: [NSLocalizedDescriptionKey: "This Mac could not create a Metal device."]) }
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 760), styleMask: [.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView], backing: .buffered, defer: false)
@@ -92,11 +124,15 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         window.delegate = self
         buildUI()
         configureActions()
+        // Swift lazy initialization is not synchronized. Build this shared
+        // routing gate on main before any background VNC worker can use it.
+        _ = frameRouter
         restoreSettings()
         if showWindow {
             WindowPlacement.restoreAndRegister(window)
             window.makeKeyAndOrderFront(nil)
             window.makeFirstResponder(sidebarHidden ? desktop : password)
+            DispatchQueue.main.async { [weak self] in self?.startSavedPreviews() }
         }
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
         NotificationCenter.default.addObserver(self, selector: #selector(focusChanged), name: NSApplication.didBecomeActiveNotification, object: nil)
@@ -105,7 +141,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     deinit {
         timer?.invalidate()
         NotificationCenter.default.removeObserver(self)
-        session?.stop()
+        computers.values.forEach { $0.session.stop() }
     }
 
     private func label(_ text: String, size: CGFloat = 13, weight: NSFont.Weight = .regular, color: NSColor = .labelColor) -> NSTextField {
@@ -131,7 +167,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         let brandIcon = NSImageView(image: NSImage(systemSymbolName: "rectangle.connected.to.line.below", accessibilityDescription: nil)!)
         brandIcon.contentTintColor = .systemTeal; brandIcon.symbolConfiguration = .init(pointSize: 29, weight: .medium)
         let brand = NSStackView(views: [brandIcon,label("Lantern",size:25,weight:.semibold)]); brand.spacing = 12
-        let subtitle = label("LOCAL NETWORK VIEWER",size:11,weight:.semibold,color:.secondaryLabelColor)
+        let subtitle = label("YOUR SCREEN WORKSPACE",size:11,weight:.semibold,color:.secondaryLabelColor)
         let header = NSStackView(views:[brand,subtitle]); header.orientation = .vertical; header.alignment = .leading; header.spacing = 10
         let title = label("Connection",size:16,weight:.semibold)
         devicePicker.font = .systemFont(ofSize: 13)
@@ -175,18 +211,35 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         let help = NSTextField(wrappingLabelWithString: "No account or subscription needed. Passwords are never stored in device profiles.")
         help.font = .systemFont(ofSize:12); help.textColor = .secondaryLabelColor
         let bottom = label("Apple Silicon  ·  Open source",size:11,color:.secondaryLabelColor)
-        let fields = NSStackView(views:[header,deviceField,deviceButtons,title,hostField,portField,passwordField,rememberPassword,passwordHint,connect,profileField,viewOnly,clipboard,mapCommand,help,bottom])
+        addScreen.addItems(withTitles:["Add screen", "Computer…", "Website…"])
+        addScreen.identifier=NSUserInterfaceItemIdentifier("addScreenButton")
+        addScreen.bezelStyle = .rounded;addScreen.font = .systemFont(ofSize:13,weight:.medium)
+        cards.orientation = .vertical;cards.alignment = .leading;cards.spacing=12
+        cards.identifier=NSUserInterfaceItemIdentifier("screenCardList")
+        settingsDisclosure.setButtonType(.toggle);settingsDisclosure.bezelStyle = .recessed
+        settingsDisclosure.image=NSImage(systemSymbolName:"slider.horizontal.3",accessibilityDescription:nil)
+        settingsDisclosure.imagePosition = .imageLeading;settingsDisclosure.state = .on
+        settingsDisclosure.identifier=NSUserInterfaceItemIdentifier("connectionSettingsDisclosure")
+        settingsGroup=NSStackView(views:[deviceField,deviceButtons,title,hostField,portField,passwordField,rememberPassword,passwordHint,connect,profileField,viewOnly,clipboard,mapCommand,help])
+        settingsGroup.orientation = .vertical;settingsGroup.alignment = .leading;settingsGroup.spacing=14
+        workspaceNotice.font = .systemFont(ofSize:12);workspaceNotice.textColor = .secondaryLabelColor
+        workspaceNotice.isHidden=true;workspaceNotice.identifier=NSUserInterfaceItemIdentifier("workspaceNotice")
+        let fields = NSStackView(views:[header,addScreen,workspaceNotice,cards,settingsDisclosure,settingsGroup,bottom])
         fields.orientation = .vertical; fields.alignment = .leading; fields.spacing = 14; fields.translatesAutoresizingMaskIntoConstraints = false
         let sidebarScroll = NSScrollView(); sidebarScroll.translatesAutoresizingMaskIntoConstraints = false
         sidebarScroll.drawsBackground = false; sidebarScroll.hasVerticalScroller = true; sidebarScroll.autohidesScrollers = true
         let document = SidebarDocument(); document.translatesAutoresizingMaskIntoConstraints = false
         sidebarScroll.documentView = document; side.addSubview(sidebarScroll); document.addSubview(fields)
         NSLayoutConstraint.activate([sidebarScroll.leadingAnchor.constraint(equalTo:side.leadingAnchor),sidebarScroll.widthAnchor.constraint(equalToConstant:288),sidebarScroll.topAnchor.constraint(equalTo:side.topAnchor),sidebarScroll.bottomAnchor.constraint(equalTo:side.bottomAnchor),document.widthAnchor.constraint(equalTo:sidebarScroll.contentView.widthAnchor),fields.leadingAnchor.constraint(equalTo:document.leadingAnchor,constant:22),fields.trailingAnchor.constraint(equalTo:document.trailingAnchor,constant:-22),fields.topAnchor.constraint(equalTo:document.topAnchor,constant:24),fields.bottomAnchor.constraint(equalTo:document.bottomAnchor,constant:-24)])
-        for child in [deviceField,hostField,portField,passwordField,passwordHint,profileField,connect,help] { child.widthAnchor.constraint(equalTo:fields.widthAnchor).isActive = true }
+        for child in [addScreen,workspaceNotice,cards,settingsDisclosure,settingsGroup!,deviceField,hostField,portField,passwordField,passwordHint,profileField,connect,help] { child.widthAnchor.constraint(equalTo:fields.widthAnchor).isActive = true }
         baseFields = [host,port,password,quality,rememberPassword,findServers]
 
         let main = NSView(); main.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(main)
+        vncPane=main
         NSLayoutConstraint.activate([main.leadingAnchor.constraint(equalTo:side.trailingAnchor),main.trailingAnchor.constraint(equalTo:root.trailingAnchor),main.topAnchor.constraint(equalTo:root.topAnchor),main.bottomAnchor.constraint(equalTo:root.bottomAnchor)])
+        webHost=NSView();webHost.translatesAutoresizingMaskIntoConstraints=false;webHost.isHidden=true
+        webHost.identifier=NSUserInterfaceItemIdentifier("browserScreenHost");root.addSubview(webHost)
+        NSLayoutConstraint.activate([webHost.leadingAnchor.constraint(equalTo:side.trailingAnchor),webHost.trailingAnchor.constraint(equalTo:root.trailingAnchor),webHost.topAnchor.constraint(equalTo:root.topAnchor),webHost.bottomAnchor.constraint(equalTo:root.bottomAnchor)])
         let top = NSView(); top.translatesAutoresizingMaskIntoConstraints = false; main.addSubview(top)
         top.identifier=NSUserInterfaceItemIdentifier("viewerHeader")
         NSLayoutConstraint.activate([top.leadingAnchor.constraint(equalTo:main.leadingAnchor),top.trailingAnchor.constraint(equalTo:main.trailingAnchor),top.topAnchor.constraint(equalTo:main.topAnchor),top.heightAnchor.constraint(equalToConstant:50)])
@@ -252,6 +305,8 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         sessionControls=[cad,send,refresh]; sessionControls.forEach{$0.isEnabled=false}
     }
     private func configureActions() {
+        addScreen.target=self;addScreen.action=#selector(addScreenSelected)
+        settingsDisclosure.target=self;settingsDisclosure.action=#selector(toggleConnectionSettings)
         connect.target=self; connect.action=#selector(toggleConnection)
         rememberPassword.target=self; rememberPassword.action=#selector(rememberPasswordChanged)
         findServers.target=self; findServers.action=#selector(findNetworkServers)
@@ -261,8 +316,14 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         viewOnly.target=self; viewOnly.action=#selector(optionsChanged)
         clipboard.target=self; clipboard.action=#selector(optionsChanged)
         mapCommand.target=self; mapCommand.action=#selector(optionsChanged)
-        desktop.onKey = { [weak self] key, down in self?.session?.key(key,down:down) }
-        desktop.onPointer = { [weak self] x,y,mask in self?.session?.pointer(x:x,y:y,mask:mask) }
+        desktop.onKey = { [weak self] key, down in
+            guard let self=self,self.selectedBrowserID == nil else { return }
+            self.session?.key(key,down:down)
+        }
+        desktop.onPointer = { [weak self] x,y,mask in
+            guard let self=self,self.selectedBrowserID == nil else { return }
+            self.session?.pointer(x:x,y:y,mask:mask)
+        }
         desktop.onFocus = { [weak self] in self?.syncClipboard() }
         desktop.onViewportChanged = { [weak self] in
             guard let self=self else { return }
@@ -288,6 +349,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         migrateConnectionPreferences()
         restoreConnectionPreferences()
         setSidebarHidden(defaults.bool(forKey:"sidebarHidden"),persist:false)
+        refreshScreenCards()
     }
     private func migrateConnectionPreferences() {
         let marker="connectionPreferencesMigrated.v1"
@@ -349,6 +411,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
             devicePicker.select(item)
         } else { devicePicker.selectItem(at: 0) }
         updateDeviceControls()
+        refreshScreenCards()
     }
     private func updateDeviceControls() {
         let available = session == nil
@@ -488,104 +551,509 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     }
     @objc private func removeCurrentDevice() {
         guard session == nil, let device = currentDevice else { return }
-        var credentialRemovalError: Error?
-        do { try passwordStore.remove(host:device.host,port:device.port) }
-        catch { credentialRemovalError=error }
-        connectionPreferences.remove(host:device.host,port:device.port)
-        devices.remove(id:device.id)
-        // Removing a profile must free its slot even if its protected credential
-        // is inaccessible. Do not immediately reload that retained credential.
-        password.stringValue="";rememberPassword.state = .off;credentialEndpoint=endpointIdentity
-        restoreConnectionPreferences();refreshDevicePicker()
-        status.toolTip=nil;window?.subtitle="Native remote desktop"
-        if let error=credentialRemovalError {
-            status.stringValue="Device removed · saved password retained"
-            passwordHint.stringValue="Device removed. Its saved password could not be removed and remains on this Mac. "+error.localizedDescription
-        } else {
-            status.stringValue="Device and its saved password removed"
-            passwordHint.stringValue="Saved password removed."
-        }
+        removeComputerProfile(id:device.id)
     }
     @objc func toggleConnection() {
+        guard selectedBrowserID == nil else { return }
         if let session = session {
             desktop.releaseKeys(); connect.isEnabled=false
             status.stringValue = connected ? "Disconnecting…" : "Canceling…"
+            if let key=endpointIdentity { computers[key]?.phase = .closing }
             session.stop(); return
         }
-        let address = host.stringValue.trimmingCharacters(in:.whitespacesAndNewlines)
-        guard !address.isEmpty, !address.contains("/"), let number = UInt16(port.stringValue.trimmingCharacters(in:.whitespacesAndNewlines)), number > 0 else {
-            showError("Enter a valid server address and port (1–65535)."); return
+        let address=host.stringValue.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard !address.isEmpty,!address.contains("/"),let number=UInt16(port.stringValue.trimmingCharacters(in:.whitespacesAndNewlines)),number>0 else {
+            showError("Enter a valid server address and port (1–65535).");return
         }
-        host.stringValue = address; port.stringValue = String(number)
-        restoreConnectionPreferences(); desktop.panMode=false; lastFrames = 0
-        defaults.set(address,forKey:"server"); defaults.set(port.stringValue,forKey:"port"); defaults.set(quality.indexOfSelectedItem,forKey:"quality")
-        let value = password.stringValue
-        var passwordToRemember: String? = rememberPassword.state == .on ? value : nil
-        let next = VNCSession(); session=next
-        next.onConnected = { [weak self,weak next] name,width,height in
-            guard let self=self, self.session === next else { return }
-            self.connected=true; self.remoteName=name
-            self.networkLatency=next?.networkLatency() ?? .unavailable
-            self.renderNetworkLatency(self.networkLatency,visible:true)
-            self.rememberAfterConnection(host:address,port:number,password:passwordToRemember)
-            passwordToRemember=nil
-            self.connectionSize = NSSize(width:width,height:height)
-            let selectedAlias=self.pendingAlias?.endpoint == self.endpointIdentity ? self.pendingAlias?.name : nil
-            let serverTitle=name.components(separatedBy:.controlCharacters).joined(separator:" ").trimmingCharacters(in:.whitespacesAndNewlines)
-            let name = selectedAlias ?? self.devices.find(host:address,port:number)?.name ?? (serverTitle.isEmpty ? "VNC computer" : String(serverTitle.prefix(80)))
-            _ = self.devices.save(name:name,host:address,port:number)
-            self.refreshDevicePicker()
-            self.status.stringValue=name == address ? address : "\(name) · \(address)"
-            self.status.toolTip="Connected to \(address):\(number)"
-            self.window?.subtitle="\(address):\(number)"
-            self.placeholder.isHidden=true; self.progress.stopAnimation(nil)
-            self.connect.title="Disconnect"; self.connect.isEnabled=true; self.connect.keyEquivalent=""
-            self.sessionControls.forEach{$0.isEnabled=true}
-            if self.viewOnly.state == .on { self.sessionControls[0].isEnabled=false; self.sessionControls[1].isEnabled=false }
-            self.window?.makeFirstResponder(self.desktop)
-            self.updateViewportUI()
-            self.clipboardCount = -1; self.syncClipboard()
-        }
-        next.onFrame = { [weak desktop] bytes,width,height,stride,dirty in desktop?.receive(bytes,width:width,height:height,stride:stride,dirty:dirty) }
-        next.onClipboard = { [weak self] text in
-            guard let self=self,self.clipboard.state == .on else { return }
-            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text,forType:.string); self.clipboardCount=NSPasteboard.general.changeCount
-        }
-        next.onDisconnected = { [weak self,weak next] reason,intentional in
-            guard let self=self,self.session === next else { return }
-            passwordToRemember=nil
-            self.connected=false; self.session=nil; self.progress.stopAnimation(nil)
-            self.networkLatency = .unavailable;self.renderNetworkLatency(.unavailable,visible:false)
-            self.connect.title="Connect"; self.connect.isEnabled=true; self.connect.keyEquivalent="\r"
-            self.baseFields.forEach{$0.isEnabled=true}; self.sessionControls.forEach{$0.isEnabled=false}
-            self.loadRememberedPassword()
-            self.updateDeviceControls()
-            self.desktop.clear(); self.placeholder.isHidden=false
-            self.updateViewportUI()
-            self.setSidebarHidden(false,persist:false)
-            self.status.stringValue=intentional ? "Disconnected" : "Connection failed"
-            self.status.toolTip=nil;self.window?.subtitle="Native remote desktop"
-            self.placeholderTitle.stringValue=intentional ? "Ready when you are." : "Couldn’t connect."
-            self.placeholderDetail.stringValue=intentional ? "Connect again to resume your remote session." : reason
-            self.metrics.stringValue="ARM64  ·  Metal"
-            self.connectionSize = .zero
-            self.window?.makeFirstResponder(self.password)
-        }
-        baseFields.forEach{$0.isEnabled=false}; updateDeviceControls(); connect.title="Cancel"; connect.keyEquivalent="\u{1b}"; progress.startAnimation(nil)
-        status.stringValue="Connecting to \(address)…"
-        status.toolTip=nil;window?.subtitle="\(address):\(number)"
-        placeholderTitle.stringValue="Connecting…"; placeholderDetail.stringValue="Opening a direct connection to \(address):\(number)."; placeholder.isHidden=false
+        host.stringValue=address;port.stringValue=String(number)
+        restoreConnectionPreferences();desktop.panMode=false;lastFrames=0
+        defaults.set(address,forKey:"server");defaults.set(port.stringValue,forKey:"port")
+        defaults.set(quality.indexOfSelectedItem,forKey:"quality")
+        let value=password.stringValue
+        let shouldRemember=rememberPassword.state == .on
         password.stringValue=""
-        if !next.start(host:address,port:number,password:value,viewOnly:viewOnly.state == .on,quality:[8,-1,5,8][max(0,min(3,quality.indexOfSelectedItem))],compression:quality.indexOfSelectedItem == 3 ? 3 : 1) {
+        startComputer(host:address,port:number,password:value,remember:shouldRemember,activate:true)
+    }
+
+    private func isSelected(_ computer: WorkspaceComputer) -> Bool {
+        selectedBrowserID == nil && endpointIdentity == computer.key && session === computer.session
+    }
+
+    private func startComputer(host address:String,port number:UInt16,password value:String,remember:Bool,activate:Bool) {
+        let key=WorkspaceComputer.key(host:address,port:number)
+        if let existing=computers[key] {
+            if activate { promoteComputer(existing) }
+            return
+        }
+        let computer=WorkspaceComputer(host:address,port:number,name:devices.find(host:address,port:number)?.name ?? address)
+        let next=computer.session
+        computers[key]=computer;computerMessages[key]=nil
+        var passwordToRemember:String?=remember ? value : nil
+        if activate {
+            session=next;connected=false
+            frameRouter.select(computer.token) { desktop.clear() }
+            baseFields.forEach{$0.isEnabled=false};updateDeviceControls()
+            connect.title="Cancel";connect.isEnabled=true;connect.keyEquivalent="\u{1b}";progress.startAnimation(nil)
+            status.stringValue="Connecting to \(address)…";status.toolTip=nil;window?.subtitle="\(address):\(number)"
+            placeholderTitle.stringValue="Connecting…";placeholderDetail.stringValue="Opening a direct connection to \(address):\(number).";placeholder.isHidden=false
+        }
+        next.onConnected={ [weak self,weak computer] name,width,height in
+            guard let self=self,let computer=computer,self.computers[key] === computer else { return }
+            guard computer.phase != .closing else { computer.session.stop();return }
+            computer.phase = .connected;computer.size=NSSize(width:width,height:height)
+            let serverTitle=name.components(separatedBy:.controlCharacters).joined(separator:" ").trimmingCharacters(in:.whitespacesAndNewlines)
+            let alias=self.pendingAlias?.endpoint == key ? self.pendingAlias?.name : nil
+            computer.name=alias ?? self.devices.find(host:address,port:number)?.name ?? (serverTitle.isEmpty ? "VNC computer" : String(serverTitle.prefix(80)))
+            _ = self.devices.save(name:computer.name,host:address,port:number)
+            if let secret=passwordToRemember {
+                do {
+                    try self.passwordStore.save(host:address,port:number,password:secret)
+                    computer.credentialNote="Password saved securely on this Mac."
+                } catch {
+                    computer.credentialNote="Connected, but the password was not saved: "+error.localizedDescription
+                    if self.isSelected(computer) { self.rememberPassword.state = .off }
+                }
+            }
             passwordToRemember=nil
-            session=nil; baseFields.forEach{$0.isEnabled=true}; updateDeviceControls()
-            connect.title="Connect"; connect.keyEquivalent="\r"; progress.stopAnimation(nil)
-            status.stringValue="Connection failed"; placeholderTitle.stringValue="Couldn’t connect."
-            placeholderDetail.stringValue="Could not start the connection worker. Try connecting again."
-            window?.makeFirstResponder(password)
-            showError("Could not start the connection worker.")
+            if self.isSelected(computer) { self.showConnectedComputer(computer) }
+            else { _=computer.session.setUpdateInterval(milliseconds:2000);computer.session.viewOnly(true) }
+            self.refreshDevicePicker();self.refreshScreenCards()
+        }
+        next.onFrame={ [weak self,weak computer] bytes,width,height,stride,dirty in
+            guard let self=self,let computer=computer else { return }
+            self.frameRouter.receive(token:computer.token,bytes:bytes,width:width,height:height,stride:stride,dirty:dirty)
+            if let preview=computer.sampler.sample(bytes,width:width,height:height,stride:stride) {
+                DispatchQueue.main.async { [weak self,weak computer] in
+                    guard let self=self,let computer=computer,self.computers[key] === computer else { return }
+                    let image=NSImage(cgImage:preview.cgImage,size:NSSize(width:preview.width,height:preview.height))
+                    self.computerImages[key]=image;self.computerSampleTimes[key]=preview.sampledAt
+                    self.refreshScreenCards()
+                }
+            }
+        }
+        next.onClipboard={ [weak self,weak computer] text in
+            guard let self=self,let computer=computer,self.isSelected(computer),self.clipboard.state == .on else { return }
+            NSPasteboard.general.clearContents();NSPasteboard.general.setString(text,forType:.string)
+            self.clipboardCount=NSPasteboard.general.changeCount
+        }
+        next.onDisconnected={ [weak self,weak computer] reason,intentional in
+            passwordToRemember=nil
+            guard let self=self,let computer=computer,self.computers[key] === computer else { return }
+            let selected=self.isSelected(computer)
+            self.computers.removeValue(forKey:key)
+            self.computerMessages[key]=intentional ? "Disconnected" : "Unavailable"
+            if selected {
+                self.session=nil;self.connected=false;self.progress.stopAnimation(nil)
+                self.frameRouter.select(nil) { self.desktop.clear() }
+                self.renderNetworkLatency(.unavailable,visible:false)
+                self.connect.title="Connect";self.connect.isEnabled=true;self.connect.keyEquivalent="\r"
+                self.baseFields.forEach{$0.isEnabled=true};self.sessionControls.forEach{$0.isEnabled=false}
+                self.loadRememberedPassword();self.updateDeviceControls();self.placeholder.isHidden=false
+                self.updateViewportUI();self.setSidebarHidden(false,persist:false)
+                self.status.stringValue=intentional ? "Disconnected" : "Connection failed"
+                self.status.toolTip=nil;self.window?.subtitle="Native remote desktop"
+                self.placeholderTitle.stringValue=intentional ? "Ready when you are." : "Couldn’t connect."
+                self.placeholderDetail.stringValue=intentional ? "Connect again to resume your remote session." : reason
+                self.metrics.stringValue="ARM64  ·  Metal";self.connectionSize = .zero
+                self.window?.makeFirstResponder(self.password)
+            }
+            self.refreshScreenCards()
+        }
+        let profile=activate ? quality.indexOfSelectedItem : connectionPreferences.load(host:address,port:number).qualityIndex
+        let index=max(0,min(3,profile))
+        if !next.start(host:address,port:number,password:value,viewOnly:!activate || viewOnly.state == .on,
+                       quality:[8,-1,5,8][index],compression:index == 3 ? 3 : 1) {
+            passwordToRemember=nil;computers.removeValue(forKey:key);computerMessages[key]="Unavailable"
+            if activate {
+                session=nil;connected=false;frameRouter.select(nil) { desktop.clear() }
+                baseFields.forEach{$0.isEnabled=true};updateDeviceControls()
+                connect.title="Connect";connect.isEnabled=true;connect.keyEquivalent="\r";progress.stopAnimation(nil)
+                status.stringValue="Connection failed";placeholderTitle.stringValue="Couldn’t connect."
+                placeholderDetail.stringValue="Could not start the connection worker. Try connecting again."
+            }
+        } else { _=next.setUpdateInterval(milliseconds:activate ? 0 : 2000) }
+        refreshScreenCards()
+    }
+
+    private func showConnectedComputer(_ computer:WorkspaceComputer) {
+        connected=true;remoteName=computer.name;connectionSize=computer.size
+        networkLatency=computer.session.networkLatency();renderNetworkLatency(networkLatency,visible:true)
+        status.stringValue=computer.name == computer.host ? computer.host : "\(computer.name) · \(computer.host)"
+        status.toolTip="Connected to \(computer.host):\(computer.port)";window?.subtitle="\(computer.host):\(computer.port)"
+        placeholder.isHidden=true;progress.stopAnimation(nil)
+        connect.title="Disconnect";connect.isEnabled=true;connect.keyEquivalent=""
+        baseFields.forEach{$0.isEnabled=false};sessionControls.forEach{$0.isEnabled=true}
+        if viewOnly.state == .on { sessionControls[0].isEnabled=false;sessionControls[1].isEnabled=false }
+        if let note=computer.credentialNote { passwordHint.stringValue=note }
+        window?.makeFirstResponder(desktop);updateViewportUI();clipboardCount = -1;syncClipboard()
+    }
+
+    private func demoteCurrentComputer() {
+        desktop.releaseKeys();persistConnectionPreferences()
+        if let current=session {
+            current.viewOnly(true);_=current.setUpdateInterval(milliseconds:2000)
+            if let key=endpointIdentity,let computer=computers[key],devices.find(host:computer.host,port:computer.port) == nil {
+                computer.phase = .closing;current.stop()
+            }
+        }
+        frameRouter.select(nil) {}
+        session=nil;connected=false
+    }
+
+    private func promoteComputer(_ computer:WorkspaceComputer) {
+        if session !== computer.session { demoteCurrentComputer() }
+        selectedBrowserID=nil;defaults.removeObject(forKey:"workspaceSelectedBrowser")
+        vncPane.isHidden=false;webHost.isHidden=true
+        browserPanes.values.forEach{$0.setActive(false)}
+        host.stringValue=computer.host;port.stringValue=String(computer.port)
+        session=computer.session;connected=computer.phase == .connected
+        defaults.set(computer.host,forKey:"server");defaults.set(String(computer.port),forKey:"port")
+        restoreConnectionPreferences()
+        frameRouter.select(computer.token) { desktop.clear() }
+        _=computer.session.setUpdateInterval(milliseconds:0)
+        computer.session.viewOnly(viewOnly.state == .on)
+        // Native authentication may have finished before its main-queue state
+        // callback. Always request a full image when promoting a preview.
+        computer.session.refresh()
+        if computer.phase == .connected { showConnectedComputer(computer) }
+        else {
+            baseFields.forEach{$0.isEnabled=false};progress.startAnimation(nil)
+            connect.title="Cancel";connect.isEnabled=true;connect.keyEquivalent="\u{1b}"
+            status.stringValue="Connecting to \(computer.host)…";status.toolTip=nil
+            placeholder.isHidden=false;placeholderTitle.stringValue="Connecting…"
+            placeholderDetail.stringValue="Opening a direct connection to \(computer.host):\(computer.port)."
+        }
+        refreshDevicePicker();refreshScreenCards()
+    }
+
+    private func showWorkspaceNotice(_ message:String) {
+        workspaceNotice.stringValue=message;workspaceNotice.isHidden=message.isEmpty
+    }
+
+    @objc private func toggleConnectionSettings() {
+        if selectedBrowserID != nil {
+            showComputerEndpoint(autoConnect:false)
+            settingsGroup.isHidden=false;settingsDisclosure.state = .on
+        } else { settingsGroup.isHidden=settingsDisclosure.state != .on }
+    }
+
+    @objc private func addScreenSelected() {
+        switch addScreen.indexOfSelectedItem {
+        case 1: prepareNewComputer()
+        case 2: presentWebsiteEditor()
+        default: break
+        }
+        addScreen.selectItem(at:0)
+    }
+
+    private func prepareNewComputer() {
+        demoteCurrentComputer();selectedBrowserID=nil
+        defaults.removeObject(forKey:"workspaceSelectedBrowser")
+        browserPanes.values.forEach{$0.setActive(false)}
+        vncPane.isHidden=false;webHost.isHidden=true
+        host.stringValue="";port.stringValue="5900";pendingAlias=nil
+        frameRouter.select(nil) { desktop.clear() }
+        loadRememberedPassword();restoreConnectionPreferences();resetDisconnectedControls()
+        refreshDevicePicker();refreshScreenCards()
+        settingsGroup.isHidden=false;settingsDisclosure.state = .on
+        status.stringValue="New connection";placeholderTitle.stringValue="Add a computer."
+        placeholderDetail.stringValue="Find a VNC server on your network or use its address."
+        window?.makeFirstResponder(host)
+    }
+
+    private func resetDisconnectedControls() {
+        connected=false;session=nil;progress.stopAnimation(nil)
+        baseFields.forEach{$0.isEnabled=true};sessionControls.forEach{$0.isEnabled=false}
+        connect.title="Connect";connect.isEnabled=true;connect.keyEquivalent="\r"
+        renderNetworkLatency(.unavailable,visible:false)
+        status.toolTip=nil;window?.subtitle="Native remote desktop"
+        placeholder.isHidden=false;metrics.stringValue="ARM64  ·  Metal";connectionSize = .zero
+        updateViewportUI();updateDeviceControls()
+    }
+
+    private func selectComputer(id:String,autoConnect:Bool=true) {
+        guard let device=devices.devices.first(where:{$0.id == id}) else { return }
+        if selectedBrowserID == nil,endpointIdentity == WorkspaceComputer.key(host:device.host,port:device.port),session != nil {
+            window?.makeFirstResponder(connected ? desktop : password);return
+        }
+        demoteCurrentComputer()
+        host.stringValue=device.host;port.stringValue=String(device.port);pendingAlias=nil
+        showComputerEndpoint(autoConnect:autoConnect)
+    }
+
+    private func showComputerEndpoint(autoConnect:Bool) {
+        selectedBrowserID=nil;defaults.removeObject(forKey:"workspaceSelectedBrowser")
+        browserPanes.values.forEach{$0.setActive(false)}
+        vncPane.isHidden=false;webHost.isHidden=true
+        if let key=endpointIdentity,let computer=computers[key] { promoteComputer(computer);return }
+        frameRouter.select(nil) { desktop.clear() }
+        resetDisconnectedControls();loadRememberedPassword();restoreConnectionPreferences()
+        defaults.set(host.stringValue,forKey:"server");defaults.set(port.stringValue,forKey:"port")
+        refreshDevicePicker();refreshScreenCards()
+        status.stringValue="Ready to connect"
+        placeholderTitle.stringValue="Your desktop, one connection away."
+        placeholderDetail.stringValue="Connect to \(currentDevice?.name ?? "your VNC server") to see and control its screen here."
+        settingsGroup.isHidden=false;settingsDisclosure.state = .on
+        if autoConnect,rememberPassword.state == .on { toggleConnection() }
+        else { window?.makeFirstResponder(host) }
+    }
+
+    private func disconnectComputer(key:String) {
+        guard let computer=computers[key] else { return }
+        if isSelected(computer) { desktop.releaseKeys();connect.isEnabled=false;status.stringValue="Disconnecting…" }
+        computer.phase = .closing;computer.session.stop();refreshScreenCards()
+    }
+
+    private func startSavedPreviews() {
+        for device in devices.devices {
+            let key=WorkspaceComputer.key(host:device.host,port:device.port)
+            guard computers[key] == nil else { continue }
+            do {
+                guard let secret=try passwordStore.read(host:device.host,port:device.port) else { continue }
+                let activate=selectedBrowserID == nil && endpointIdentity == key && session == nil
+                startComputer(host:device.host,port:device.port,password:secret,remember:false,activate:activate)
+            } catch { computerMessages[key]="Saved password unavailable" }
+        }
+        if let id=defaults.string(forKey:"workspaceSelectedBrowser"),browserStore.screens.contains(where:{$0.id == id}) {
+            selectBrowser(id:id)
+        }
+        for screen in browserStore.screens.prefix(maximumLoadedBrowsers) where browserPanes[screen.id] == nil {
+            _=makeBrowserPane(screen)
+        }
+        refreshScreenCards()
+    }
+
+    private func previewAge(_ timestamp:TimeInterval?) -> String {
+        guard let timestamp=timestamp else { return "waiting for screen" }
+        let seconds=max(0,Int(ProcessInfo.processInfo.systemUptime-timestamp))
+        if seconds < 2 { return "just sampled" }
+        if seconds < 60 { return "sampled \(seconds)s ago" }
+        return "sampled \(seconds/60)m ago"
+    }
+
+    private func refreshScreenCards() {
+        updateWorkspaceMenu()
+        let wanted=devices.devices.map{"computer:"+$0.id}+browserStore.screens.map{"browser:"+$0.id}
+        let keepComputers=Set(devices.devices.map{$0.id}),keepBrowsers=Set(browserStore.screens.map{$0.id})
+        computerCards=computerCards.filter{keepComputers.contains($0.key)}
+        browserCards=browserCards.filter{keepBrowsers.contains($0.key)}
+        var ordered:[NSView]=[]
+        for device in devices.devices {
+            let key=WorkspaceComputer.key(host:device.host,port:device.port)
+            let card:ScreenCardView
+            if let existing=computerCards[device.id] { card=existing }
+            else {
+                card=ScreenCardView(identifier:"computer:"+device.id,title:device.name,kind:.computer)
+                card.onSelect={ [weak self] in self?.selectComputer(id:device.id) }
+                card.onEdit={ [weak self] in self?.renameComputer(id:device.id) }
+                card.onRemove={ [weak self] in self?.removeComputerProfile(id:device.id) }
+                computerCards[device.id]=card
+            }
+            card.onDisconnect=computers[key] == nil ? nil : { [weak self] in self?.disconnectComputer(key:key) }
+            let text:String
+            if let computer=computers[key] {
+                switch computer.phase {
+                case .connecting: text="Connecting…"
+                case .closing: text="Disconnecting…"
+                case .connected: text="Connected · "+previewAge(computerSampleTimes[key])
+                }
+            } else {
+                text=(computerMessages[key] ?? "Not connected")+(computerImages[key] == nil ? "" : " · last capture")
+            }
+            card.update(title:device.name,status:text,image:computerImages[key],selected:selectedBrowserID == nil && endpointIdentity == key)
+            ordered.append(card)
+        }
+        for screen in browserStore.screens {
+            let card:ScreenCardView
+            if let existing=browserCards[screen.id] { card=existing }
+            else {
+                card=ScreenCardView(identifier:"browser:"+screen.id,title:screen.title,kind:.browser)
+                card.onSelect={ [weak self] in self?.selectBrowser(id:screen.id) }
+                card.onEdit={ [weak self] in self?.presentWebsiteEditor(id:screen.id) }
+                card.onRemove={ [weak self] in self?.removeBrowser(id:screen.id) }
+                browserCards[screen.id]=card
+            }
+            let text:String
+            if let pane=browserPanes[screen.id] { text=pane.hasError ? "Page unavailable" : "Local browser · "+previewAge(browserSampleTimes[screen.id]) }
+            else { text="Sleeping · select to resume" }
+            card.update(title:screen.title,status:text,image:browserImages[screen.id],selected:selectedBrowserID == screen.id)
+            ordered.append(card)
+        }
+        if wanted != cardOrder {
+            cardOrder=wanted;cards.setViews(ordered,in:.center)
+            for view in ordered { view.widthAnchor.constraint(equalTo:cards.widthAnchor).isActive=true }
         }
     }
+
+    private func updateWorkspaceMenu() {
+        let active=selectedBrowserID != nil
+        guard menuBrowserActive != active,
+              let item=NSApp.mainMenu?.items.first(where:{$0.identifier?.rawValue == "workspaceEditMenu"}),
+              let menu=item.submenu else { return }
+        menuBrowserActive=active;item.isHidden = !active
+        for command in menu.items {
+            if let key=command.representedObject as? String { command.keyEquivalent=active ? key : "" }
+        }
+    }
+
+    private func renameComputer(id:String) {
+        guard let device=devices.devices.first(where:{$0.id == id}),let window=window,window.attachedSheet == nil else { return }
+        let alert=NSAlert();alert.messageText="Name this computer"
+        alert.informativeText="Choose a name you recognize. Its connection stays open."
+        let name=NSTextField(string:device.name);name.frame=NSRect(x:0,y:0,width:300,height:28)
+        alert.accessoryView=name;alert.addButton(withTitle:"Save");alert.addButton(withTitle:"Cancel")
+        alert.beginSheetModal(for:window) { [weak self] response in
+            guard let self=self,response == .alertFirstButtonReturn,
+                  self.devices.devices.contains(where:{$0.id == id}),
+                  let saved=self.devices.save(name:name.stringValue,host:device.host,port:device.port) else { return }
+            let key=WorkspaceComputer.key(host:device.host,port:device.port)
+            self.computers[key]?.name=saved.name
+            if let computer=self.computers[key],self.isSelected(computer),computer.phase == .connected {
+                self.status.stringValue="\(saved.name) · \(saved.host)"
+            }
+            self.refreshDevicePicker()
+        }
+        alert.window.makeFirstResponder(name);name.selectText(nil)
+    }
+
+    private func presentWebsiteEditor(id:String?=nil) {
+        guard let window=window,window.attachedSheet == nil else { return }
+        let current=id.flatMap{identifier in browserStore.screens.first{$0.id == identifier}}
+        let alert=NSAlert();alert.messageText=current == nil ? "Add a website" : "Edit website"
+        alert.informativeText="Open a website inside Lantern. Browser data stays separate from Safari and Chrome."
+        let address=NSTextField(string:current?.url ?? "");address.placeholderString="https://example.com or a local address"
+        let name=NSTextField(string:current?.title ?? "");name.placeholderString="Name (optional)"
+        let fields=NSStackView(views:[address,name]);fields.orientation = .vertical;fields.spacing=10
+        fields.frame=NSRect(x:0,y:0,width:360,height:72)
+        for field in [address,name] { field.widthAnchor.constraint(equalToConstant:360).isActive=true;field.heightAnchor.constraint(equalToConstant:30).isActive=true }
+        alert.accessoryView=fields;alert.addButton(withTitle:current == nil ? "Add Website" : "Save");alert.addButton(withTitle:"Cancel")
+        alert.beginSheetModal(for:window) { [weak self] response in
+            guard let self=self,response == .alertFirstButtonReturn else { return }
+            do {
+                let screen:BrowserScreen
+                if let current=current {
+                    guard let edited=try self.browserStore.update(id:current.id,title:name.stringValue,url:address.stringValue) else { return }
+                    screen=edited
+                    if let url=URL(string:screen.url) { self.browserPanes[screen.id]?.load(url) }
+                } else { screen=try self.browserStore.add(title:name.stringValue,url:address.stringValue) }
+                self.selectBrowser(id:screen.id)
+            } catch { DispatchQueue.main.async { self.showError(error.localizedDescription) } }
+        }
+        alert.window.makeFirstResponder(address);address.selectText(nil)
+    }
+
+    private func makeBrowserPane(_ screen:BrowserScreen) -> BrowserScreenPane {
+        if let pane=browserPanes[screen.id] { return pane }
+        while browserPanes.count >= maximumLoadedBrowsers {
+            guard let oldest=browserPanes.keys.filter({$0 != selectedBrowserID}).min(by:{browserUse[$0,default:0] < browserUse[$1,default:0]}) else { break }
+            browserPanes[oldest]?.stop();browserPanes[oldest]?.removeFromSuperview()
+            browserPanes.removeValue(forKey:oldest);browserUse.removeValue(forKey:oldest);browserSnapshotInFlight.removeValue(forKey:oldest)
+        }
+        let pane=BrowserScreenPane(screen:screen,dataStore:browserWebsiteDataStore)
+        pane.translatesAutoresizingMaskIntoConstraints=false;webHost.addSubview(pane)
+        NSLayoutConstraint.activate([pane.leadingAnchor.constraint(equalTo:webHost.leadingAnchor),pane.trailingAnchor.constraint(equalTo:webHost.trailingAnchor),pane.topAnchor.constraint(equalTo:webHost.topAnchor),pane.bottomAnchor.constraint(equalTo:webHost.bottomAnchor)])
+        pane.isHidden=true;pane.setActive(false);pane.setSidebarVisible(!sidebarHidden)
+        pane.onNavigation={ [weak self,weak pane] url,_ in
+            guard let self=self,let pane=pane,self.browserPanes[screen.id] === pane else { return }
+            if self.browserStore.screens.first(where:{$0.id == screen.id})?.url != url.absoluteString {
+                _=try? self.browserStore.update(id:screen.id,url:url.absoluteString)
+            }
+            self.refreshScreenCards()
+        }
+        pane.onOpenURL={ [weak self,weak pane] url in
+            guard let self=self,let pane=pane,self.browserPanes[screen.id] === pane else { return }
+            do {
+                let card=try self.browserStore.add(title:"",url:url.absoluteString)
+                if self.selectedBrowserID == screen.id { self.selectBrowser(id:card.id) }
+                else {
+                    if self.browserPanes.count < self.maximumLoadedBrowsers { _=self.makeBrowserPane(card) }
+                    self.refreshScreenCards()
+                }
+            }
+            catch { self.showWorkspaceNotice(error.localizedDescription) }
+        }
+        pane.onToggleSidebar={ [weak self] in self?.toggleSidebar() }
+        pane.onFullScreen={ [weak self] in self?.fullScreen() }
+        pane.onStateChanged={ [weak self] in self?.refreshScreenCards() }
+        browserPanes[screen.id]=pane
+        browserUseSequence += 1;browserUse[screen.id]=browserUseSequence
+        return pane
+    }
+
+    private func selectBrowser(id:String) {
+        guard let screen=browserStore.screens.first(where:{$0.id == id}) else { return }
+        if selectedBrowserID == nil { demoteCurrentComputer() }
+        selectedBrowserID=id;defaults.set(id,forKey:"workspaceSelectedBrowser")
+        browserUseSequence += 1;browserUse[id]=browserUseSequence
+        let pane=makeBrowserPane(screen)
+        vncPane.isHidden=true;webHost.isHidden=false
+        for (identifier,other) in browserPanes { other.isHidden=identifier != id;other.setActive(identifier == id) }
+        pane.setSidebarVisible(!sidebarHidden);pane.focus()
+        settingsGroup.isHidden=true;settingsDisclosure.state = .off
+        window?.subtitle="Local browser · \(screen.title)"
+        refreshScreenCards();takeBrowserPreviews()
+        if !sidebarHidden {
+            window?.contentView?.layoutSubtreeIfNeeded()
+            if let card=browserCards[id] { _=card.scrollToVisible(card.bounds) }
+        }
+    }
+
+    private func removeBrowser(id:String) {
+        let selected=selectedBrowserID == id
+        browserPanes[id]?.stop();browserPanes[id]?.removeFromSuperview();browserPanes.removeValue(forKey:id)
+        browserUse.removeValue(forKey:id);browserSnapshotInFlight.removeValue(forKey:id)
+        browserImages.removeValue(forKey:id);browserSampleTimes.removeValue(forKey:id);browserAttemptTimes.removeValue(forKey:id);browserStore.remove(id:id)
+        if selected {
+            if let next=browserStore.screens.first { selectBrowser(id:next.id) }
+            else { showComputerEndpoint(autoConnect:false) }
+        }
+        refreshScreenCards()
+    }
+
+    private func takeBrowserPreviews() {
+        guard !sidebarHidden else { return }
+        let now=ProcessInfo.processInfo.systemUptime
+        for (id,pane) in browserPanes {
+            guard browserSnapshotInFlight[id] == nil,now-browserAttemptTimes[id,default:0] >= 2 else { continue }
+            browserAttemptTimes[id]=now
+            let token=UUID();browserSnapshotInFlight[id]=token
+            pane.takePreview { [weak self,weak pane] image in
+                guard let self=self,let pane=pane,self.browserPanes[id] === pane,self.browserSnapshotInFlight[id] == token else { return }
+                self.browserSnapshotInFlight.removeValue(forKey:id)
+                if let image=image {
+                    self.browserImages[id]=image
+                    self.browserSampleTimes[id]=pane.lastPreviewSampleTime
+                }
+                self.refreshScreenCards()
+            }
+        }
+    }
+
+    private func removeComputerProfile(id:String) {
+        guard let device=devices.devices.first(where:{$0.id == id}) else { return }
+        let key=WorkspaceComputer.key(host:device.host,port:device.port)
+        if let computer=computers[key] {
+            if isSelected(computer) {
+                desktop.releaseKeys();frameRouter.select(nil) { desktop.clear() };resetDisconnectedControls()
+            }
+            computers.removeValue(forKey:key);computer.session.stop()
+        }
+        var credentialError:Error?
+        do { try passwordStore.remove(host:device.host,port:device.port) } catch { credentialError=error }
+        connectionPreferences.remove(host:device.host,port:device.port);devices.remove(id:device.id)
+        computerImages.removeValue(forKey:key);computerSampleTimes.removeValue(forKey:key);computerMessages.removeValue(forKey:key)
+        if endpointIdentity == key {
+            password.stringValue="";rememberPassword.state = .off;credentialEndpoint=endpointIdentity
+            restoreConnectionPreferences()
+            if let error=credentialError {
+                status.stringValue="Device removed · saved password retained"
+                passwordHint.stringValue="Device removed. Its saved password could not be removed and remains on this Mac. "+error.localizedDescription
+            } else { status.stringValue="Device and its saved password removed";passwordHint.stringValue="Saved password removed." }
+        }
+        if credentialError != nil { showWorkspaceNotice("Computer removed. Its protected saved password remains on this Mac.") }
+        refreshDevicePicker();refreshScreenCards()
+    }
+
     private func showError(_ text: String) {
         let alert=NSAlert(); alert.messageText="Connection settings"; alert.informativeText=text; alert.beginSheetModal(for:window!)
     }
@@ -651,7 +1119,8 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     }
     @objc func toggleSidebar() {
         setSidebarHidden(!sidebarHidden,persist:true)
-        window?.makeFirstResponder(connected || sidebarHidden ? desktop : password)
+        if let id=selectedBrowserID { browserPanes[id]?.focus() }
+        else { window?.makeFirstResponder(connected || sidebarHidden ? desktop : password) }
     }
     private func setSidebarHidden(_ hidden: Bool,persist: Bool) {
         sidebarHidden=hidden; sidebar.isHidden=hidden; sidebarWidth.constant=hidden ? 0 : 288
@@ -665,14 +1134,16 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         }
         window?.contentView?.layoutSubtreeIfNeeded()
         desktop.updateCanvas(); updateViewportUI()
+        browserPanes.values.forEach{$0.setSidebarVisible(!hidden)}
+        if !hidden { takeBrowserPreviews() }
     }
     @objc func fullScreen() { window?.toggleFullScreen(nil) }
-    @objc func sendCAD() { if viewOnly.state != .on { desktop.releaseKeys(); session?.controlAltDelete(); window?.makeFirstResponder(desktop) } }
+    @objc func sendCAD() { if selectedBrowserID == nil,viewOnly.state != .on { desktop.releaseKeys(); session?.controlAltDelete(); window?.makeFirstResponder(desktop) } }
     @objc func sendClipboard() {
         guard connected, viewOnly.state != .on, let text=NSPasteboard.general.string(forType:.string) else { return }
         session?.clipboard(text); clipboardCount=NSPasteboard.general.changeCount; window?.makeFirstResponder(desktop)
     }
-    @objc func refreshScreen() { session?.refresh(); window?.makeFirstResponder(desktop) }
+    @objc func refreshScreen() { guard selectedBrowserID == nil else { return };session?.refresh(); window?.makeFirstResponder(desktop) }
     @objc private func focusChanged() { if window?.firstResponder === desktop { syncClipboard() } }
     private func syncClipboard() {
         guard connected, clipboard.state == .on, viewOnly.state != .on, NSApp.isActive, window?.isKeyWindow == true, clipboardCount != NSPasteboard.general.changeCount else { return }
@@ -680,6 +1151,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         clipboardCount=NSPasteboard.general.changeCount
     }
     private func tick() {
+        takeBrowserPreviews();refreshScreenCards()
         guard connected else { return }
         networkLatency=session?.networkLatency() ?? .unavailable
         let current=desktop.framesReceived
@@ -707,6 +1179,32 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         latency.stringValue=snapshot.title;latency.toolTip=snapshot.toolTip;latency.isHidden = !visible
     }
 #if APP_UI_HARNESS
+    var testingComputerPreviewCount:Int { computerImages.count }
+    var testingBrowserPreviewCount:Int { browserImages.count }
+    var testingComputerCount:Int { computers.count }
+    var testingSelectedBrowserID:String? { selectedBrowserID }
+    var testingCurrentSession:VNCSession? { session }
+    var testingDesktop:MetalDesktop { desktop }
+    var testingBrowserPreviewSampleTimes:[String:TimeInterval] { browserSampleTimes }
+    func testingComputerSession(id:String)->VNCSession? {
+        guard let device=devices.devices.first(where:{$0.id == id}) else { return nil }
+        return computers[WorkspaceComputer.key(host:device.host,port:device.port)]?.session
+    }
+    func testingEditBrowser(id:String,title:String,url:String)throws {
+        guard let screen=try browserStore.update(id:id,title:title,url:url) else { return }
+        if let address=URL(string:screen.url) { browserPanes[id]?.load(address) }
+        refreshScreenCards()
+    }
+    func testingAddBrowser(title:String,url:String)throws->String {
+        let screen=try browserStore.add(title:title,url:url);selectBrowser(id:screen.id);return screen.id
+    }
+    func testingSelectBrowser(id:String) { selectBrowser(id:id) }
+    func testingSelectComputer(id:String) { selectComputer(id:id) }
+    func testingStartSavedPreviews() { startSavedPreviews() }
+    func testingBrowserPane(id:String)->BrowserScreenPane? { browserPanes[id] }
+    func testingRemoveBrowser(id:String) { removeBrowser(id:id) }
+    func testingRemoveComputer(id:String) { removeComputerProfile(id:id) }
+    func testingWorkspaceTick() { tick() }
     func testingShowNetworkLatency(_ snapshot: NetworkLatency?,connectionName: String?=nil) {
         if let connectionName=connectionName { status.stringValue=connectionName }
         renderNetworkLatency(snapshot ?? .unavailable,visible:snapshot != nil)
@@ -726,12 +1224,22 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         guard remembersWindowFrame,let window=window else { return }
         WindowPlacement.save(window)
     }
-    func windowWillClose(_ notification: Notification) { persistWindowPlacement();persistConnectionPreferences(); desktop.releaseKeys(); session?.stop(); NSApp.terminate(nil) }
-    func stop() { persistWindowPlacement();persistConnectionPreferences(); discoveryController?.dismiss(); desktop.releaseKeys(); session?.stop() }
+    func windowWillClose(_ notification: Notification) { stop();NSApp.terminate(nil) }
+    func stop() {
+        persistWindowPlacement();persistConnectionPreferences();discoveryController?.dismiss();desktop.releaseKeys()
+        frameRouter.select(nil) {}
+        computers.values.forEach{$0.session.stop()};computers.removeAll();session=nil;connected=false
+        browserPanes.values.forEach{$0.stop()}
+    }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var controller: ViewerController?
+#if APP_UI_HARNESS
+    func testingInstallMenu(controller: ViewerController) {
+        self.controller=controller;buildMenu()
+    }
+#endif
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
         do {
@@ -750,6 +1258,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         appMenu.addItem(withTitle:"Hide Lantern VNC",action:#selector(NSApplication.hide(_:)),keyEquivalent:"h")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle:"Quit Lantern VNC",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q")
+        let editItem=NSMenuItem();editItem.title="Edit";menu.addItem(editItem)
+        editItem.identifier=NSUserInterfaceItemIdentifier("workspaceEditMenu");editItem.isHidden=true
+        let edit=NSMenu(title:"Edit");editItem.submenu=edit
+        edit.addItem(withTitle:"Undo",action:Selector(("undo:")),keyEquivalent:"z")
+        let redo=edit.addItem(withTitle:"Redo",action:Selector(("redo:")),keyEquivalent:"Z")
+        redo.keyEquivalentModifierMask=[.shift,.command]
+        edit.addItem(.separator())
+        edit.addItem(withTitle:"Cut",action:#selector(NSText.cut(_:)),keyEquivalent:"x")
+        edit.addItem(withTitle:"Copy",action:#selector(NSText.copy(_:)),keyEquivalent:"c")
+        edit.addItem(withTitle:"Paste",action:#selector(NSText.paste(_:)),keyEquivalent:"v")
+        edit.addItem(withTitle:"Select All",action:#selector(NSText.selectAll(_:)),keyEquivalent:"a")
+        // Keep the established VNC Command-to-Control path untouched. Browser
+        // edit shortcuts exist only while a local browser card is selected.
+        for item in edit.items where !item.keyEquivalent.isEmpty {
+            item.representedObject=item.keyEquivalent;item.keyEquivalent=""
+        }
         let sessionItem=NSMenuItem(); sessionItem.title="Session"; menu.addItem(sessionItem); let session=NSMenu(title:"Session"); sessionItem.submenu=session
         let connect=session.addItem(withTitle:"Connect / Disconnect",action:#selector(connection),keyEquivalent:"k"); connect.target=self
         session.addItem(withTitle:"Send Ctrl–Alt–Del",action:#selector(cad),keyEquivalent:"").target=self
@@ -799,6 +1323,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     @objc private func handTool() { controller?.toggleHand() }
     @objc private func sidebar() { controller?.toggleSidebar() }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if controller?.isBrowserActive == true,let action=menuItem.action,
+           [#selector(connection),#selector(cad),#selector(paste),#selector(refresh),#selector(frameRate(_:)),#selector(automaticZoom),#selector(fitZoom),#selector(actualSize),#selector(zoomIn),#selector(zoomOut),#selector(handTool)].contains(action) { return false }
         if menuItem.action == #selector(handTool) {
             menuItem.state=controller?.isHandActive == true ? .on : .off
             return controller?.canMoveView == true

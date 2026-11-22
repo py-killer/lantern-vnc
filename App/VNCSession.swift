@@ -62,6 +62,11 @@ final class VNCSession {
     func pointer(x: Int32, y: Int32, mask: Int32) { if let client = client { _ = vncv_pointer(client, x, y, mask) } }
     func refresh() { if let client = client { _ = vncv_refresh(client) } }
     func viewOnly(_ value: Bool) { if let client = client { _ = vncv_set_view_only(client, value ? 1 : 0) } }
+    @discardableResult
+    func setUpdateInterval(milliseconds: UInt32) -> Bool {
+        guard let client = client else { return false }
+        return vncv_set_update_interval(client, milliseconds) != 0
+    }
     func clipboard(_ value: String) {
         guard let client = client else { return }
         value.utf8CString.withUnsafeBufferPointer { data in

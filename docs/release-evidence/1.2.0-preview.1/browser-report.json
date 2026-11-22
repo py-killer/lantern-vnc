@@ -1,0 +1,12 @@
+{
+  "checks" : 164,
+  "foregroundJavaScriptDialogs" : "alert acknowledgement, confirm accept\/cancel, prompt accept\/cancel; owned invisible sheets and synthetic text",
+  "foregroundPolicySimulation" : "test-window isKeyWindow override only; no app activation or global input",
+  "globalInputEvents" : 0,
+  "hiddenAttachedSnapshot" : "updated pixels verified while another pane active",
+  "HTTPAuthentication" : "canceled without credential UI",
+  "macOS" : "Version 26.6 (Build 25G72)",
+  "snapshotPixelBound" : "256x160",
+  "viewportPreserved" : true,
+  "webKitFixtureScope" : "owned127.0.0.1 HTTP pages; ephemeral shared cookies"
+}

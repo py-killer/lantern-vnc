@@ -9,7 +9,7 @@ struct SavedDevice: Codable, Equatable {
     var port: UInt16
 }
 
-/// The viewer uses one active connection and remembers up to three destinations.
+/// The workspace keeps one interactive VNC screen and remembers up to three destinations.
 final class DeviceStore {
     static let maximumDevices = 3
     private static let storageKey = "savedDevices.v1"

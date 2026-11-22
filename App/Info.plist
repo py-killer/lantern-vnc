@@ -6,9 +6,9 @@
 <key>CFBundleName</key><string>Lantern VNC</string>
 <key>CFBundleDisplayName</key><string>Lantern VNC</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>1.1.0</string>
-<key>CFBundleVersion</key><string>10</string>
-<key>LanternReleaseChannel</key><string>Preview 6</string>
+<key>CFBundleShortVersionString</key><string>1.2.0</string>
+<key>CFBundleVersion</key><string>11</string>
+<key>LanternReleaseChannel</key><string>Preview 1</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>

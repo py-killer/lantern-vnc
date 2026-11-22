@@ -23,8 +23,12 @@
       <div class="page-intro"><span class="eyebrow">LANTERN VNC · COMMUNITY WIKI</span><span class="preview-label">Preview documentation</span></div>
       <article class="guide-content"><h1 id="display-and-navigation">Display and navigation</h1>
 <p><a href="index.html">Wiki home</a> · <a href="getting-started.html">Getting started</a> · <a href="troubleshooting.html">Troubleshooting</a></p>
-<p>This guide describes the implemented <strong>1.1.0-preview.6</strong>. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.</p>
+<p>This guide describes the implemented <strong>1.2.0-preview.1</strong>. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.</p>
 <p>The server supplies its desktop resolution. Lantern's zoom, window size, and local navigation change your view of that image; they never change the server's display resolution.</p>
+<h2 id="select-a-screen">Select a screen</h2>
+<p>Choose a named card in the sidebar. Connected VNC computers retain their sessions when another card is selected. Background sessions are read-only and request updates at roughly two-second intervals; the selected computer resumes foreground updates and alone receives remote input. Switching to a local browser sends no input to the VNC computers. Switching does not replace the existing Metal viewport or change the server's resolution.</p>
+<p>Computer thumbnails are small, aspect-correct samples kept in RAM only, normally no more often than every two seconds. They are separate from the full selected desktop. A card's age is the time since its last sample; a disconnected card may show a labeled last capture. Loaded browser pages also have sampled previews. Do not use thumbnails or their ages as a latency measurement or proof of connectivity.</p>
+<p>Context-click computer cards to rename, disconnect, or remove them, and browser cards to edit or remove them. <strong>Connection settings</strong> reveals the selected VNC endpoint's fields. Browser toolbar shortcuts apply locally to WebKit; VNC zoom/input controls apply to the selected remote desktop. See <a href="getting-started.html#add-a-local-website">Getting started</a> for browser limits.</p>
 <h2 id="choose-a-viewing-mode">Choose a viewing mode</h2>
 <div class="table-scroll" role="region" aria-label="Reference table" tabindex="0"><table>
 <thead>
@@ -156,6 +160,7 @@
     </main>
     <aside class="page-contents" aria-label="On this page"><p>ON THIS PAGE</p><div class="toc">
 <ul>
+<li><a href="#select-a-screen">Select a screen</a></li>
 <li><a href="#choose-a-viewing-mode">Choose a viewing mode</a></li>
 <li><a href="#reach-an-oversized-desktops-edges">Reach an oversized desktop's edges</a></li>
 <li><a href="#make-more-room-and-change-zoom-quickly">Make more room and change zoom quickly</a></li>

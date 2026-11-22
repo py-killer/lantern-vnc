@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0-preview.1 — 2026-11-22
+
+- Build 11: add a sidebar workspace of named computer and website cards. Keep the three-saved-computer limit and existing per-endpoint viewing preferences.
+- Keep connected VNC computers alive when another card is selected. Background sessions become read-only and request updates at roughly two-second intervals; selecting a connected computer resumes that same session. Only the selected computer receives remote input and optional clipboard sharing.
+- Sample small, aspect-correct VNC previews about every two seconds from the borrowed framebuffer. Own only the thumbnail pixels, keep previews in RAM, and gate selected-renderer frames by connection token so closing or previous targets cannot overwrite the new selection.
+- Add native WebKit browser screens for HTTP(S), with address editing, Back/Forward/Reload, Command–L/R/[/], and context-menu editing/removal. Lantern uses its own persistent website session, separate from Safari and Chrome. Keep up to 100 saved browser cards and at most six loaded pages; least recently used pages sleep and reload when selected again.
+- Show sampled previews for loaded browser pages. Downloads remain unsupported with inline feedback; HTTP authentication/credential authorization dialogs are disabled. Popup/OAuth flows are not full-browser equivalents.
+- Preserve the existing MetalDesktop/DesktopViewport implementation, decoded pixel quality, fixed VNC picture presets, server resolution, passive RTT indicator, and local window restoration. Preview pacing is not an adaptive quality feature or a network-speed guarantee.
+- Verify workspace switching with two owned VNC servers and HTTP fixtures: 100 integration checks, including browser Edit-menu scoping, background-popup focus protection and six-pane eviction/resume, and 4,000 concurrent frame-routing pairs passed. Browser, native UI, settings, pacing, sampler, card, and store checks are recorded in the [versioned report](docs/TEST_RESULTS-1.2.0-preview.1.md).
+- Keep every Keychain operation noninteractive. Ad hoc updates can still make earlier saved passwords inaccessible; [issue #2](https://github.com/py-killer/lantern-vnc/issues/2) remains unresolved. Developer ID signing, notarization, physical display-transition coverage, and the full manual hardware matrix remain pending.
+
 ## 1.1.0-preview.6 — 2026-11-21
 
 - Build 10: removing a device clears its profile and saved viewing preferences and frees the slot even when deletion of a protected saved password fails. An inline notice says that the credential was retained; removal never opens an authentication dialog or offers an approval action.

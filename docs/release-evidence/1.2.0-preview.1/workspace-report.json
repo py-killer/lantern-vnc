@@ -1,0 +1,9 @@
+{
+  "browserPages" : 9,
+  "checks" : 100,
+  "maximumLoadedBrowserPanes" : 6,
+  "routerSelectionPairs" : 4000,
+  "scope" : "owned offscreen controller; loopback fixtures; isolated preferences and fake passwords; no user app or global input",
+  "vncReconnects" : 0,
+  "vncSessions" : 2
+}

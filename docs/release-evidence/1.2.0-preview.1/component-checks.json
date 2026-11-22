@@ -1,0 +1,11 @@
+{
+  "browserStoreChecks": 59,
+  "previewSamplerChecks": 62,
+  "previewSamplerAddressSanitizer": "passed",
+  "nativeCardChecks": 41,
+  "nativeProtocolSessions": 116,
+  "nativeProtocolAddressSanitizer": "bridge and LibVNCClient instrumented; JPEG Release SIMD",
+  "protocolHookClients": 100,
+  "concurrentRTTGetters": 8000,
+  "scope": "owned synthetic data and loopback fixtures; no user credentials or remote desktop content"
+}

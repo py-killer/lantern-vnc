@@ -27,7 +27,11 @@ connection thread service outgoing input while waiting for a fragmented
 server message; it does not re-enter the RFB parser. Capability messages are
 read into temporary storage before publishing their complete flags. The
 hook defaults to disabled and does not change the `rfbClient` structure
-layout. These modifications remain GPL-2.0-or-later and are included in the
+layout. A second optional hook lets the connection worker defer automatic
+incremental framebuffer requests for background previews. Explicit full-frame
+refreshes bypass that hook; it does not change server capability or resize
+flags. It also defaults to disabled and uses `clientData` without changing
+the `rfbClient` layout. These modifications remain GPL-2.0-or-later and are included in the
 corresponding vendor source and build scripts supplied with Lantern VNC.
 
 ## libjpeg-turbo 3.2.1 and the Independent JPEG Group

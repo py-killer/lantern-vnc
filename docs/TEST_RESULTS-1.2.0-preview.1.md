@@ -1,0 +1,34 @@
+# Workspace preview validation — 22 November 2026
+
+Candidate: **1.2.0-preview.1, build 11**, native arm64 for macOS 13 or later. The workspace was checked with owned offscreen AppKit windows, synthetic pixels, isolated preferences, fake credential storage, and loopback VNC/HTTP fixtures. These checks did not use a personal desktop, real user credentials, global input automation, or external websites.
+
+## Confirmed checks
+
+| Suite | Result and scope |
+| --- | --- |
+| Workspace integration | **100 checks passed**, plus **4,000 concurrent selection/frame pairs**. Two VNC sessions retain their original objects and exactly one wire connection each across computer/browser switching. Only the selected VNC target receives input; view-only suppression and independent quality/zoom settings remain intact. Both background computer previews update, hidden browser previews update, browser history/edit/error/retry work, browser Edit-menu shortcuts stay local without stealing VNC shortcuts, and removing selected/last screens restores a safe target. |
+| Browser resource lifecycle | Included in the 100 workspace checks: seven saved pages never exceed **six loaded panes**. The oldest inactive pane stops, rejects new snapshots, and resumes in a new pane at its recorded URL. Eviction/resume does not reconnect VNC. Removed or evicted snapshot callbacks cannot recreate deleted previews. |
+| Browser component | **164 checks passed** for owned HTTP pages: local controls, page interaction, navigation/history, retained page state, bounded snapshots including hidden pages, error/retry, popup routing, authentication-dialog suppression and foreground website JavaScript alert/confirm/prompt completion. These fixture results do not establish compatibility with public OAuth flows or every website. |
+| Existing native app UI | **5,335 checks passed** across the workspace-integrated native layout and existing Fit/zoom/sidebar/endpoint controls using owned windows. |
+| Connection settings | **143 checks passed**, including authentication/cancellation states, noninteractive credential failures and independent profile removal. Only synthetic/fake credentials and owned loopback servers were used. |
+| Background pacing protocol | **7 scenarios passed with AddressSanitizer instrumentation**: update cadence, foreground/background changes, input servicing and cancellation/cleanup on owned fixtures. The pacing request does not change picture quality or provide a bandwidth guarantee. |
+| Preview sampler | **62 checks passed normally and with AddressSanitizer**: BGRA/BGRX channel order, owned pixels, padded strides, aspect bounds, two-second throttling, reset/force, invalid/overflowing frame rejection and concurrent sampling. Maximum thumbnail size is 480×270 pixels; borrowed full-resolution source pointers are not retained. |
+| Native cards | **41 checks passed** for 244-point card layout, aspect-preserving letterboxing, accessibility, selected state, single local selection, keyboard activation and optional context-menu actions. A synthetic rendered card was visually inspected. |
+| Browser store | **59 checks passed** for bounded HTTP(S) records, URL validation, editing/removal and persistence separate from VNC profiles. |
+
+Versioned evidence: [workspace](release-evidence/1.2.0-preview.1/workspace-report.json), [browser](release-evidence/1.2.0-preview.1/browser-report.json), [UI](release-evidence/1.2.0-preview.1/app-ui-report.json), [connection settings](release-evidence/1.2.0-preview.1/connection-settings-report.json), [pacing](release-evidence/1.2.0-preview.1/update-interval-report.json), [component checks](release-evidence/1.2.0-preview.1/component-checks.json), [renderer preservation](release-evidence/1.2.0-preview.1/renderer-preservation.json).
+
+The workspace runner independently inspected the mock-server transcripts: each target had one negotiated VNC connection, its expected target-specific input, and one clean close. The wrapper apps stay under test-owned `.noindex` directories. A normal sandbox run that blocked loopback listeners exited **77 (unavailable)**; the authorized native/loopback run produced the passing results above. Unavailable checks are not counted as passes.
+
+The established **116 protocol sessions** also passed with AddressSanitizer on the bridge and LibVNCClient; the JPEG dependency retained its Release SIMD build. Existing Tight/JPEG decoding, CopyRect/resize, authentication, input ordering, cancellation and passive RTT checks passed. This is fixture evidence, not a real-network performance claim.
+
+## Behavior and limits
+
+- Keep up to three saved VNC computer profiles. Connected background sessions become read-only and request updates at roughly two-second intervals. Only the selected computer feeds the shared renderer and receives remote input/optional clipboard sharing. Named card previews are sampled and kept in RAM, never persisted screenshots or a latency measurement.
+- Browser screens run locally using native WebKit, with Lantern's own persistent website session separate from Safari and Chrome. Test controllers use an ephemeral store. Up to 100 browser cards can be recorded; at most six pages remain loaded. Sleeping pages reload and can lose unsaved form/page state. Loaded background pages may keep running scripts and network requests.
+- Downloads are unsupported and reported inline. HTTP authentication and credential authorization dialogs are disabled. Popup/OAuth opener behavior is not full-browser parity. Foreground alert/confirm/prompt flows were exercised using invisible test-owned sheets and a simulated key-window state; these tests never activated a user app or entered credentials.
+- Existing `MetalDesktop` and `DesktopViewport` implementations are unchanged for this release. Decoded pixel quality, picture presets, server resolution, passive RTT and saved local window geometry remain unchanged. Pacing and sampled previews are not adaptive compression or a network/end-to-end speed benchmark.
+- All Keychain methods remain noninteractive. Ad hoc updates may still lose access to earlier saved items. **Cross-update password continuity remains unresolved** in [issue #2](https://github.com/py-killer/lantern-vnc/issues/2); this release does not change ACLs or claim a migration fix.
+- VNC transport encryption, a built-in VPN/SSH tunnel, Intel support, file transfer, remote audio, recording and printing are not provided. Developer ID signing, notarization, physical display transitions and the complete manual hardware matrix remain pending. This is a preview, not a stable-release certification.
+
+Earlier [Preview 6 validation](TEST_RESULTS-1.1.0-preview.6.md) and [Preview 5 rendering evidence](TEST_RESULTS-1.1.0-preview.5.md) remain historical reports. Their counts are not presented as fresh hardware runs. No personal LAN measurement, owner address, private alias, credential or desktop screenshot is included here.

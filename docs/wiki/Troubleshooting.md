@@ -32,7 +32,7 @@ Uncheck **Remember password** to request deletion of the saved value; **Remove**
 
 ## The desktop is tiny, cropped, or an edge is unreachable
 
-In **1.1.0-preview.6**, new endpoints start in **Fit to Window** so the whole desktop is visible. Fit can make a 5K desktop's text tiny. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use the visible scroll bars or **Hand** to reach the edges. Hand makes dragging, scrolling, and arrow keys move the local view. Press Escape or turn Hand off to resume remote input. Normal scrolling with Hand off controls the remote app.
+In **1.2.0-preview.1**, new endpoints start in **Fit to Window** so the whole desktop is visible. Fit can make a 5K desktop's text tiny. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use the visible scroll bars or **Hand** to reach the edges. Hand makes dragging, scrolling, and arrow keys move the local view. Press Escape or turn Hand off to resume remote input. Normal scrolling with Hand off controls the remote app.
 
 At 100%, one remote pixel maps to one drawable/backing pixel, not one Mac point. Retina and macOS scaled display settings affect perceived text size. Local zoom never changes the server's resolution.
 
@@ -49,6 +49,8 @@ The app remembers its last normal window size and position. When reopened withou
 Try **Fit to Window**, then compare the remote pointer with a clearly marked test target. Note whether the offset appears after changing scale, scrolling, reconnecting, or changing the remote resolution. Include synthetic target coordinates when possible; avoid screenshots of sensitive desktops.
 
 ## The image is stale, slow, or soft
+
+Card previews are sampled, not live video. Background VNC sessions are read-only with requests paced roughly every two seconds. Select a computer to resume foreground updates on its existing connection. A disconnected card can retain a labeled last capture; its image does not prove that the server is reachable. Thumbnails stay in RAM and are not saved screenshots.
 
 Preview 5 reduces local copying for small changes and can send queued input while a partial screen update is waiting for more data. It preserves pixel quality and the existing compression presets. It does not change VNC network compression or remove server/network delays; large full-screen changes still require full-image work.
 
@@ -68,13 +70,21 @@ Low RTT does not include screen capture, encoding, decoding, or rendering delay.
 
 ## Connected, but keyboard or mouse input does nothing
 
-Turn off **Hand**, click the remote image to focus it, turn off **View only**, and confirm that the server/password grants remote control. A server-issued view-only connection cannot be promoted by changing Lantern's checkbox. Try the explicit **Ctrl–Alt–Del** action for a remote secure-attention screen.
+Select the computer's card first: browser screens and background computer previews never send it input. Turn off **Hand**, click the remote image to focus it, turn off **View only**, and confirm that the server/password grants remote control. A server-issued view-only connection cannot be promoted by changing Lantern's checkbox. Try the explicit **Ctrl–Alt–Del** action for a remote secure-attention screen.
 
 If a modifier appears stuck after a focus change, disconnect and report the key sequence. Include which Mac modifiers were held, but no sensitive text typed remotely.
 
 ## Clipboard text is missing or changed
 
 Enable **Share clipboard text** only if you intend to transfer text. Clipboard sends are suppressed in View only mode. This is text sharing, not file or image transfer. Servers using the older Latin-1 clipboard protocol cannot represent every Unicode character; unsupported characters may become `?` unless the UTF-8 extension is negotiated.
+
+## A browser page is sleeping, cannot load, or loses its form
+
+Only six browser pages stay loaded. A least recently used page sleeps when another needs its slot; selecting that card reloads its saved URL, so unsaved forms or page state may be lost. Up to 100 browser cards can still remain recorded. Removing a browser card stops its page; switching away alone leaves a loaded page running, with sampled previews.
+
+Check the HTTP(S) address and use the inline **Retry** action after a network failure. Use the address field or context-click **Edit…** to correct a saved address. Back/Forward/Reload and Command–L/R/[/] affect the selected local browser screen, not the VNC computer.
+
+Browser downloads are unsupported and reported inline. HTTP authentication and credential authorization dialogs are disabled. Some OAuth/popup flows depend on full-browser behavior that Lantern does not implement; use a full browser for those sites. Safari or Chrome sessions are not imported, so a website may require a separate login in Lantern. Site content, scripts, and cookies are governed by that site's behavior and privacy policy.
 
 ## Prepare a helpful report
 

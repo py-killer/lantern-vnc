@@ -1476,6 +1476,19 @@ SetFormatAndEncodings(rfbClient* client)
  * SendIncrementalFramebufferUpdateRequest.
  */
 
+/* Optional application pacing without reusing server capability/resize state.
+ * The clientData payload is borrowed, like the local read-wake extension. */
+static char updateRequestHookTag;
+
+rfbBool
+rfbClientSetUpdateRequestHook(rfbClient* client, const rfbClientUpdateRequestHook* hook)
+{
+  if (!client || (hook && !hook->shouldRequest)) return FALSE;
+  if (!hook && !rfbClientGetClientData(client, &updateRequestHookTag)) return TRUE;
+  rfbClientSetClientData(client, &updateRequestHookTag, (void*)hook);
+  return rfbClientGetClientData(client, &updateRequestHookTag) == hook;
+}
+
 rfbBool
 SendIncrementalFramebufferUpdateRequest(rfbClient* client)
 {
@@ -2565,8 +2578,13 @@ HandleRFBServerMessage(rfbClient* client)
       client->GotFrameBufferUpdate(client, rect.r.x, rect.r.y, rect.r.w, rect.r.h);
     }
 
-    if (!SendIncrementalFramebufferUpdateRequest(client))
-      return FALSE;
+    {
+      const rfbClientUpdateRequestHook* hook =
+        rfbClientGetClientData(client, &updateRequestHookTag);
+      if ((!hook || hook->shouldRequest(client)) &&
+          !SendIncrementalFramebufferUpdateRequest(client))
+        return FALSE;
+    }
 
     if (client->FinishedFrameBufferUpdate)
       client->FinishedFrameBufferUpdate(client);

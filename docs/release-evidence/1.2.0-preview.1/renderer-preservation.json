@@ -1,0 +1,7 @@
+{
+  "baseline": "v1.1.0-preview.6",
+  "unchangedFiles": {
+    "MetalDesktop.swift": "7eb9cecab04147d18de532444f442240185f29554c3dc2b1d9d8ab8838b8ee23",
+    "DesktopViewport.swift": "132a2d095ad2cc72d3aeb238c14716b12df678e16157bba0804fec45b860507d"
+  }
+}

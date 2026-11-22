@@ -2,9 +2,17 @@
 
 [Wiki home](Home.md) · [Getting started](Getting-Started.md) · [Troubleshooting](Troubleshooting.md)
 
-This guide describes the implemented **1.1.0-preview.6**. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.
+This guide describes the implemented **1.2.0-preview.1**. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.
 
 The server supplies its desktop resolution. Lantern's zoom, window size, and local navigation change your view of that image; they never change the server's display resolution.
+
+## Select a screen
+
+Choose a named card in the sidebar. Connected VNC computers retain their sessions when another card is selected. Background sessions are read-only and request updates at roughly two-second intervals; the selected computer resumes foreground updates and alone receives remote input. Switching to a local browser sends no input to the VNC computers. Switching does not replace the existing Metal viewport or change the server's resolution.
+
+Computer thumbnails are small, aspect-correct samples kept in RAM only, normally no more often than every two seconds. They are separate from the full selected desktop. A card's age is the time since its last sample; a disconnected card may show a labeled last capture. Loaded browser pages also have sampled previews. Do not use thumbnails or their ages as a latency measurement or proof of connectivity.
+
+Context-click computer cards to rename, disconnect, or remove them, and browser cards to edit or remove them. **Connection settings** reveals the selected VNC endpoint's fields. Browser toolbar shortcuts apply locally to WebKit; VNC zoom/input controls apply to the selected remote desktop. See [Getting started](Getting-Started.md#add-a-local-website) for browser limits.
 
 ## Choose a viewing mode
 

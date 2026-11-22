@@ -1,0 +1,50 @@
+{
+  "scope": "owned localhost fixtures; instrumented native bridge and LibVNCClient; JPEG dependency Release SIMD; not Wi-Fi or end-to-end measurements",
+  "scenarios": [
+    {
+      "frames": 10,
+      "requests": 11,
+      "scenario": "pacing-active",
+      "stopMilliseconds": 0.169
+    },
+    {
+      "frames": 2,
+      "requestIntervalMilliseconds": 2034.0099999448285,
+      "requests": 2,
+      "scenario": "pacing-background",
+      "stopMilliseconds": 0.201
+    },
+    {
+      "frames": 5,
+      "promotionFullRequestMilliseconds": 22.227999987080693,
+      "requests": 7,
+      "scenario": "pacing-promote",
+      "stopMilliseconds": 0.19
+    },
+    {
+      "frames": 1,
+      "requests": 1,
+      "scenario": "pacing-cancel",
+      "stopMilliseconds": 0.123
+    },
+    {
+      "frames": 1,
+      "inputDeliveredMilliseconds": 0.2749999985098839,
+      "requests": 1,
+      "scenario": "pacing-input",
+      "stopMilliseconds": 0.143
+    },
+    {
+      "frames": 11,
+      "requests": 12,
+      "scenario": "pacing-reset",
+      "stopMilliseconds": 0.134
+    },
+    {
+      "frames": 11,
+      "requests": 12,
+      "scenario": "pacing-isolation",
+      "stopMilliseconds": 0.299
+    }
+  ]
+}

@@ -15,6 +15,8 @@ xcrun swiftc -swift-version 5 -module-cache-path "$TEST_DIR/module-cache" \
   -o "$TEST_DIR/test-devices"
 "$PROJECT_DIR/tests/run-connection-preferences-tests.sh"
 "$PROJECT_DIR/tests/run-network-latency-tests.sh"
+"$PROJECT_DIR/tests/run-browser-store-tests.sh"
+"$PROJECT_DIR/tests/run-screen-preview-tests.sh"
 "$PROJECT_DIR/tests/run-window-placement-tests.sh" --geometry-only
 "$PROJECT_DIR/tests/run-frame-update-tests.sh"
 "$PROJECT_DIR/tests/run-network-discovery-tests.sh"
@@ -33,6 +35,9 @@ if [[ "$mode" == --full ]]; then
   "$PROJECT_DIR/tests/run-window-placement-tests.sh"
   "$PROJECT_DIR/tests/run-display-tests.sh"
   "$PROJECT_DIR/tests/run-performance-display-tests.sh"
+  "$PROJECT_DIR/tests/run-screen-cards-tests.sh"
+  "$PROJECT_DIR/tests/run-browser-tests.sh"
+  "$PROJECT_DIR/tests/run-workspace-tests.sh"
   "$PROJECT_DIR/tests/run-app-ui-tests.sh"
   "$PROJECT_DIR/tests/run-connection-settings-tests.sh"
   "$PROJECT_DIR/tests/run-discovery-ui-tests.sh"
@@ -44,5 +49,6 @@ else
   echo 'NOT RUN: native Metal/window tests. Headless checks do not approve a release.'
 fi
 TEST_SANITIZE=1 "$PROJECT_DIR/tests/run-tests.sh"
+TEST_SANITIZE=1 "$PROJECT_DIR/tests/run-update-interval-tests.sh"
 codesign --verify --deep --strict "$PROJECT_DIR/build/artifacts.noindex/Lantern VNC.app"
 echo 'Automated checks completed. Record manual display/hardware results in docs/RELEASE_CHECKLIST.md before a stable release.'

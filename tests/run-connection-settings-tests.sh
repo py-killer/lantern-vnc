@@ -8,7 +8,7 @@ mkdir -p "$TEST_DIR/module-cache"
 xcrun swiftc -O -D APP_UI_HARNESS -swift-version 5 -target arm64-apple-macosx13.0 \
   -module-cache-path "$TEST_DIR/module-cache" \
   -import-objc-header "$PROJECT_DIR/native/VNCBridge.h" \
-  -framework AppKit -framework Metal -framework MetalKit -framework QuartzCore -framework Network -framework Security \
+  -framework AppKit -framework Metal -framework MetalKit -framework QuartzCore -framework Network -framework Security -framework WebKit \
   "$PROJECT_DIR"/App/*.swift "$PROJECT_DIR/tests/connection_settings_harness.swift" \
   "$BUILD_DIR/VNCBridge.o" "$BUILD_DIR/vnc/libvncclient.a" "$BUILD_DIR/jpeg/libjpeg.a" \
   -lz -o "$TEST_DIR/connection-settings-harness"

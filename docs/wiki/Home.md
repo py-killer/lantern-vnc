@@ -4,12 +4,16 @@ Lantern is a free native VNC viewer for Apple Silicon Macs running macOS 13 or l
 
 | Guide | What it covers |
 | --- | --- |
-| [Getting started](Getting-Started.md) | Open the app, find a local server, name a device, and optionally remember its password. |
-| [Display and navigation](Display-and-Navigation.md) | Fit, saved zoom/picture presets, large desktops, and local versus remote scrolling. |
+| [Getting started](Getting-Started.md) | Find a server, name computers, switch screen cards, and add local websites. |
+| [Display and navigation](Display-and-Navigation.md) | Sampled previews, Fit, saved presets, large desktops, and local versus remote input. |
 | [Troubleshooting](Troubleshooting.md) | Connection, authentication, display, and input problems. |
 | [FAQ](FAQ.md) | Compatibility, network RTT, clipboard behavior, privacy, and project limits. |
 
-These pages describe the implemented **1.1.0-preview.6**, including local-server discovery, optional Keychain passwords, saved viewing preferences, and a passive TCP RTT indicator. New endpoints start in Fit with the Wi-Fi high-quality preset. The existing dirty-region rendering improvements are preserved; RTT adds no probes or picture-quality changes. It is a preview, not a stable-release claim: physical external-display transitions and the complete manual hardware matrix remain unverified. See the [changelog](../../CHANGELOG.md) and [release checklist](../RELEASE_CHECKLIST.md); unchecked cases are not passes.
+These pages describe **1.2.0-preview.1, build 13**. Each browser card is a window containing up to 12 real tabs. Tabs and popups stay inside that window instead of creating sidebar cards. Named computer/browser cards keep RAM-only previews, updated about every ten seconds in the background; repeated sampling pauses for the selected screen while its main view runs normally. Live and connecting cards keep their saved order when selected. Offline, sleeping or closing screens move to the bottom and return to their original live-card position when available again.
+
+Saved VNC computers can remain connected read-only in the background; only the selected computer receives remote input. Local browser windows keep Lantern's own persistent website session and restore saved tab URLs/selection. New VNC endpoints still start in Fit with the Wi-Fi high-quality preset; the existing Metal viewport, rendering and passive RTT indicator are preserved.
+
+This remains a preview. Browser downloads and some popup/OAuth flows are unsupported, reliable Keychain access across ad hoc updates remains unresolved, and physical external-display transitions and the complete manual hardware matrix remain unverified. See the [current test report](../TEST_RESULTS-1.2.0-preview.1.md), [changelog](../../CHANGELOG.md), and [release checklist](../RELEASE_CHECKLIST.md); unchecked cases are not passes.
 
 ## Feedback and contributions
 

@@ -36,6 +36,12 @@ def read_exact(sock, length):
     return bytes(data)
 
 
+def protocol_time():
+    # Compare timestamps with the C fixture's explicit CLOCK_MONOTONIC.
+    # Some macOS Python versions give time.monotonic() a process-local epoch.
+    return time.clock_gettime(time.CLOCK_MONOTONIC)
+
+
 def rect(x, y, width, height, encoding, payload=b""):
     return struct.pack("!HHHHi", x, y, width, height, encoding) + payload
 
@@ -239,7 +245,19 @@ class Handler(socketserver.BaseRequestHandler):
                 encodings = struct.unpack("!" + "i" * count, read_exact(sock, count * 4))
                 self.server.log(self.connection_id, "encodings", values=encodings)
             elif message == 3:
-                read_exact(sock, 9)
+                incremental, x, y, requested_width, requested_height = struct.unpack("!BHHHH", read_exact(sock, 9))
+                if mode == "pacing":
+                    self.server.log(self.connection_id, "update-request", incremental=incremental,
+                                    x=x, y=y, width=requested_width, height=requested_height,
+                                    at=protocol_time())
+                    # Constant changing content, but avoid an unbounded active
+                    # hot loop. This delay belongs only to the mock server.
+                    time.sleep(.02)
+                    image = pixels(width, height, (25 + stage % 100, 50, 75))
+                    sock.sendall(update(rect(0, 0, width, height, 0, image)))
+                    self.server.log(self.connection_id, "pacing-update-sent", stage=stage, at=protocol_time())
+                    stage += 1
+                    continue
                 if mode == "rtt-idle":
                     self.server.log(self.connection_id, "update-request")
                 if mode == "oversize":
@@ -275,17 +293,17 @@ class Handler(socketserver.BaseRequestHandler):
                     # requires its direct large-payload branch (>8192 bytes).
                     slow_pending.set()
                     sock.sendall(packet[:20])
-                    self.server.log(self.connection_id, "slow-update-started", at=time.monotonic())
+                    self.server.log(self.connection_id, "slow-update-started", at=protocol_time())
                     def finish_slow(packet=packet, drop=mode == "slow-drop"):
                         time.sleep(0.9)
                         slow_pending.clear()
-                        self.server.log(self.connection_id, "slow-update-release", at=time.monotonic())
+                        self.server.log(self.connection_id, "slow-update-release", at=protocol_time())
                         try:
                             if drop:
                                 sock.shutdown(socket.SHUT_RDWR)
                             else:
                                 sock.sendall(packet[20:])
-                                self.server.log(self.connection_id, "slow-update-complete", at=time.monotonic())
+                                self.server.log(self.connection_id, "slow-update-complete", at=protocol_time())
                         except OSError:
                             self.server.log(self.connection_id, "slow-update-aborted")
                     threading.Thread(target=finish_slow, daemon=True).start()
@@ -311,11 +329,11 @@ class Handler(socketserver.BaseRequestHandler):
             elif message == 4:
                 down, key = struct.unpack("!B2xI", read_exact(sock, 7))
                 self.server.log(self.connection_id, "key", down=down, key=key,
-                                during_slow=slow_pending.is_set(), at=time.monotonic())
+                                during_slow=slow_pending.is_set(), at=protocol_time())
             elif message == 5:
                 mask, x, y = struct.unpack("!BHH", read_exact(sock, 5))
                 self.server.log(self.connection_id, "pointer", mask=mask, x=x, y=y,
-                                during_slow=slow_pending.is_set(), at=time.monotonic())
+                                during_slow=slow_pending.is_set(), at=protocol_time())
             elif message == 6:
                 length = struct.unpack("!3xI", read_exact(sock, 7))[0]
                 if length > 1024 * 1024:
@@ -330,7 +348,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=5901)
     parser.add_argument("--scenario", choices=("frames", "tight", "jpeg", "password", "auth-fail", "stall", "oversize", "drop", "interactive",
-                        "slow-small", "slow-large", "slow-capabilities", "slow-view-only", "slow-cancel", "slow-drop", "rtt-idle"), default="frames")
+                        "slow-small", "slow-large", "slow-capabilities", "slow-view-only", "slow-cancel", "slow-drop", "rtt-idle", "pacing"), default="frames")
     parser.add_argument("--interactive", action="store_true")
     parser.add_argument("--info", type=Path)
     parser.add_argument("--events", type=Path)

@@ -1,0 +1,12 @@
+{
+  "browserWindows" : 9,
+  "checks" : 142,
+  "fixturePreviewIntervalSeconds" : 2,
+  "maximumLoadedBrowserPanes" : 6,
+  "productionPreviewIntervalSeconds" : 10,
+  "routerSelectionPairs" : 4000,
+  "scope" : "owned offscreen controller; loopback fixtures; isolated preferences and fake passwords; no user app or global input",
+  "testedTabbedWindows" : 2,
+  "vncReconnects" : 0,
+  "vncSessions" : 2
+}

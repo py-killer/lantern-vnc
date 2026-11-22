@@ -534,6 +534,17 @@ extern rfbBool InitialiseRFBConnection(rfbClient* client);
  */
 extern rfbBool SetFormatAndEncodings(rfbClient* client);
 extern rfbBool SendIncrementalFramebufferUpdateRequest(rfbClient* client);
+/* Optional Lantern extension (2026), default off. Called on the reader thread
+ * immediately before the library's automatic incremental request. TRUE keeps
+ * the stock request; FALSE defers only that request (not a connection error).
+ * Explicit SendFramebufferUpdateRequest calls are never intercepted. The app
+ * owns the borrowed hook until unregister/cleanup and must serialize access on
+ * the reader thread. Stored in clientData: no rfbClient layout/ABI change. */
+typedef struct {
+  rfbBool (*shouldRequest)(rfbClient* client);
+} rfbClientUpdateRequestHook;
+extern rfbBool rfbClientSetUpdateRequestHook(rfbClient* client,
+                                            const rfbClientUpdateRequestHook* hook);
 /**
  * Sends a framebuffer update request to the server. A VNC client may request an
  * update from the server at any time. You can also specify which portions of

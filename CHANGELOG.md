@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0-preview.1 — 2026-11-22
+
+- Build 13: add named computer and browser-window cards. Keep the three-saved-computer limit and existing per-endpoint viewing preferences.
+- Keep VNC sessions alive when another card is selected. Background connections become read-only with updates paced roughly every ten seconds; returning resumes the same session. Only the selected computer receives remote input and optional clipboard sharing.
+- Sample small, aspect-correct previews in RAM about every ten seconds in the background. Give the selected screen an initial thumbnail, then pause repeated sampling while its main desktop/page runs normally. Gate renderer frames by connection token so previous targets cannot overwrite the new selection.
+- Build 13 keeps live and connecting cards in saved order when selected. Only offline, sleeping or closing screens move to the bottom; restored screens return to their original position among live cards.
+- Make each WebKit card a browser window with up to 12 real tabs, its own tab strip, **+ / Command–T**, close buttons/**Command–W**, and same-window popup tabs. Keep address editing, Back/Forward/Reload and Command–L/R/[/]. Save every tab's URL/title and selection; migrate single-address cards without changing their aliases or URLs.
+- Use Lantern's own persistent website session, separate from Safari and Chrome. Keep up to 100 saved browser windows and at most six loaded windows; inactive least recently used windows sleep and restore tabs on demand. Unsaved forms/page state may be lost on sleep/reload.
+- Downloads remain unsupported with inline feedback; HTTP authentication/credential authorization dialogs are disabled. Some OAuth/popup flows still need a full browser.
+- Preserve MetalDesktop/DesktopViewport, decoded pixels, VNC quality presets, server resolution, passive RTT and window restoration. Preview pacing is not adaptive compression or a network-speed guarantee.
+- Extend store coverage to 197 checks for tab migration, complete-state persistence, selection, last-tab replacement, URL validation and the 12-tab bound. The sampler passed 71 checks with AddressSanitizer. Retain passing browser/UI/settings/component coverage for unchanged behavior. Build 13's fresh workspace check for selection-stable ordering is pending; the earlier build 12 workspace count is not claimed as a new result. The [versioned report](docs/TEST_RESULTS-1.2.0-preview.1.md) distinguishes retained component results, including 43 native-card checks, from the pending workspace rerun.
+- Keep Keychain operations noninteractive. Ad hoc updates can still make earlier saved passwords inaccessible; [issue #2](https://github.com/py-killer/lantern-vnc/issues/2) remains unresolved. Developer ID signing, notarization, physical display-transition coverage and the full manual hardware matrix remain pending.
+
 ## 1.1.0-preview.6 — 2026-11-21
 
 - Build 10: removing a device clears its profile and saved viewing preferences and frees the slot even when deletion of a protected saved password fails. An inline notice says that the credential was retained; removal never opens an authentication dialog or offers an approval action.

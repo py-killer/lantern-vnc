@@ -24,7 +24,7 @@
 #define MAX_FRAME_BYTES ((size_t)256 * 1024 * 1024)
 #define CONNECT_SECONDS 8
 
-typedef enum { CMD_KEY, CMD_POINTER, CMD_CLIPBOARD, CMD_REFRESH, CMD_VIEW_ONLY } command_type;
+typedef enum { CMD_KEY, CMD_POINTER, CMD_CLIPBOARD, CMD_REFRESH, CMD_VIEW_ONLY, CMD_UPDATE_INTERVAL } command_type;
 typedef struct command {
     command_type type;
     uint32_t key;
@@ -62,6 +62,9 @@ struct vncv_client {
     int view_only, pointer_x, pointer_y, pointer_mask;
     uint32_t pressed[256];
     size_t pressed_count;
+    uint32_t update_interval_ms;
+    int update_pending;
+    double update_due;
     char last_error[768];
 };
 
@@ -325,6 +328,26 @@ static void frame_finished(rfbClient *rfb) {
     }
     c->dirty = 0;
 }
+/* The library calls this just before its normal automatic request. Interval 0
+   returns TRUE so the original send stays in exactly the same protocol slot,
+   before FinishedFrameBufferUpdate. Background pacing changes no server flags. */
+static rfbBool should_request_update(rfbClient *rfb) {
+    vncv_client *c = owner(rfb);
+    if (!c->update_interval_ms) {
+        c->update_pending = 0;
+        c->update_due = 0;
+        return TRUE;
+    }
+    c->update_pending = 1;
+    c->update_due = monotonic_seconds() + (double)c->update_interval_ms / 1000.0;
+    return FALSE;
+}
+static int send_scheduled_update(vncv_client *c, rfbClient *rfb) {
+    if (!c->update_pending || monotonic_seconds() < c->update_due) return 1;
+    c->update_pending = 0;
+    c->update_due = 0;
+    return SendIncrementalFramebufferUpdateRequest(rfb);
+}
 static void clipboard_utf8(rfbClient *rfb, const char *text, int length) {
     vncv_client *c = owner(rfb);
     if (length < 0 || length > MAX_CLIPBOARD || (!text && length)) return;
@@ -411,11 +434,19 @@ static int process_commands(vncv_client *c, rfbClient *rfb) {
                 break;
             case CMD_REFRESH:
                 okay = SendFramebufferUpdateRequest(rfb, 0, 0, rfb->width, rfb->height, FALSE);
+                if (okay) { c->update_pending = 0; c->update_due = 0; }
                 break;
             case CMD_VIEW_ONLY:
                 if (cmd->a && !c->view_only) okay = release_inputs(c, rfb);
                 c->view_only = cmd->a != 0;
                 rfb->appData.viewOnly = c->view_only;
+                break;
+            case CMD_UPDATE_INTERVAL:
+                if (c->update_interval_ms != cmd->key) {
+                    c->update_interval_ms = cmd->key;
+                    if (c->update_pending)
+                        c->update_due = monotonic_seconds() + (double)cmd->key / 1000.0;
+                }
                 break;
         }
         free_command(cmd);
@@ -443,6 +474,7 @@ static void *connection_worker(void *argument) {
     logging_client = c;
     rfbClient *rfb = NULL;
     rfbClientReadWakeHook read_wake = { c->wake[0], service_input_during_read };
+    rfbClientUpdateRequestHook update_hook = { should_request_update };
     int fd = connect_socket(c);
     if (fd < 0) goto finished;
     rfb = rfbGetClient(8, 3, 4);
@@ -503,6 +535,10 @@ static void *connection_worker(void *argument) {
         set_error(c, "Unable to initialize responsive input servicing.");
         goto cleanup;
     }
+    if (!rfbClientSetUpdateRequestHook(rfb, &update_hook)) {
+        set_error(c, "Unable to initialize preview update pacing.");
+        goto cleanup;
+    }
     pthread_mutex_lock(&c->mutex);
     c->network_ready = 1;
     c->network_activity_at = monotonic_seconds();
@@ -513,12 +549,18 @@ static void *connection_worker(void *argument) {
     while (!stopped(c)) {
         if (!process_commands(c, rfb)) { if (!c->last_error[0]) set_error(c, "The connection closed while sending input."); break; }
         if (stopped(c)) break;
+        if (!send_scheduled_update(c, rfb)) { if (!c->last_error[0]) set_error(c, "The connection closed while requesting an update."); break; }
         int ready = rfb->buffered > 0;
         if (!ready) {
             fd_set readfds;
             FD_ZERO(&readfds); FD_SET(rfb->sock, &readfds); FD_SET(c->wake[0], &readfds);
             int maxfd = rfb->sock > c->wake[0] ? rfb->sock : c->wake[0];
             struct timeval timeout = {0, 250000};
+            if (c->update_pending) {
+                double remaining = c->update_due - monotonic_seconds();
+                if (remaining < 0) remaining = 0;
+                if (remaining < 0.25) timeout.tv_usec = (long)(remaining * 1000000.0) + 1;
+            }
             int count = select(maxfd + 1, &readfds, NULL, NULL, &timeout);
             if (count < 0 && errno == EINTR) continue;
             if (count < 0) { set_error(c, "Network wait failed: %s", strerror(errno)); break; }
@@ -536,6 +578,7 @@ cleanup:
     if (c->shutdown_fd >= 0) { close(c->shutdown_fd); c->shutdown_fd = -1; }
     pthread_mutex_unlock(&c->mutex);
     if (rfb) {
+        rfbClientSetUpdateRequestHook(rfb, NULL);
         rfbClientSetReadWakeHook(rfb, NULL);
         rfbClientCleanup(rfb);
     }
@@ -595,6 +638,7 @@ int vncv_start_with_options(vncv_client *c, const char *host, uint16_t port, con
     c->compression_level = compression_level;
     c->last_error[0] = 0;
     c->dirty = 0; c->pressed_count = 0; c->pointer_mask = 0;
+    c->update_interval_ms = 0; c->update_pending = 0; c->update_due = 0;
     drain_wake(c);
     pthread_mutex_lock(&c->mutex);
     clear_commands_locked(c);
@@ -684,5 +728,11 @@ int vncv_set_view_only(vncv_client *c, int view_only) {
     command *cmd = calloc(1, sizeof(*cmd));
     if (!cmd) return 0;
     cmd->type = CMD_VIEW_ONLY; cmd->a = view_only != 0;
+    return enqueue(c, cmd);
+}
+int vncv_set_update_interval(vncv_client *c, uint32_t milliseconds) {
+    command *cmd = calloc(1, sizeof(*cmd));
+    if (!cmd) return 0;
+    cmd->type = CMD_UPDATE_INTERVAL; cmd->key = milliseconds;
     return enqueue(c, cmd);
 }

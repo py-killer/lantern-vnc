@@ -1,0 +1,13 @@
+{
+  "checks" : 143,
+  "confirmedProfilesSavedBeforeAuthentication" : 3,
+  "globalInputEvents" : 0,
+  "interactiveCredentialControls" : 0,
+  "keychainAccess" : "none; injected in-memory fake",
+  "latencyLifecycle" : "hidden before authentication, visible while connected, reset after disconnect\/rejection\/cancel",
+  "macOS" : "Version 26.6 (Build 25G72)",
+  "networkScope" : "owned 127.0.0.1 mock servers only",
+  "profileRemovalWithInaccessibleCredential" : "slot freed, endpoint preferences removed, protected credential untouched, notice inline",
+  "successfulPasswordSaves" : 1,
+  "windowPresentation" : "owned offscreen non-key"
+}

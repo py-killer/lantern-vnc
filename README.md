@@ -1,17 +1,17 @@
 # Lantern VNC — free VNC client for Mac
 
-**Current preview: 1.1.0-preview.6 · Apple Silicon · macOS 13+**
+**Current preview: 1.2.0-preview.1 · build 13 · Apple Silicon · macOS 13+**
 
 A free native VNC client for Apple Silicon Macs, built with AppKit and Metal.
 Use it for an occasional remote task or regular direct access to your existing VNC server.
 Connect directly to a TightVNC server, view its desktop, and control it with
-your Mac's keyboard and mouse. No browser, account, subscription, or license
+your Mac's keyboard and mouse. No external browser, Lantern account, subscription, or license
 key is required. This version has no expiry, trial clock, license check, or
 paid feature unlock. Optional tips and feedback never affect access.
 
-**Preview candidate:** this update replaces the 1.0 display/navigation model,
-which had large-desktop scaling and edge-navigation issues. The new controls
-are implemented locally, but physical external-display transitions and the
+**Preview candidate:** this update adds named screen cards, background VNC
+previews, and local browser screens to the existing Metal viewer. The workspace
+has owned-fixture integration coverage, but physical external-display transitions and the
 complete manual hardware matrix have not been verified. Treat this as a
 preview, not a fully checked stable release.
 
@@ -22,7 +22,8 @@ preview, not a fully checked stable release.
 [Community and feedback](COMMUNITY.md) ·
 [Wiki](docs/wiki/Home.md) · [Changelog](CHANGELOG.md) ·
 [Release checklist](docs/RELEASE_CHECKLIST.md) ·
-[Preview 6 test results](docs/TEST_RESULTS-1.1.0-preview.6.md) ·
+[1.2 Preview 1 test results](docs/TEST_RESULTS-1.2.0-preview.1.md) ·
+[Earlier Preview 6 results](docs/TEST_RESULTS-1.1.0-preview.6.md) ·
 [Earlier Preview 5 results](docs/TEST_RESULTS-1.1.0-preview.5.md) ·
 [Earlier Preview 4 results](docs/TEST_RESULTS-1.1.0-preview.4.md)
 
@@ -64,6 +65,21 @@ VPN interfaces, IPv6, Bonjour, and other ports are not automatically searched.
 Use a manual address for those setups or when no result appears.
 
 ## Use the remote desktop
+
+The sidebar shows named cards for up to three saved VNC computers. Select a
+card to control that computer; **Connection settings** reveals its host, port,
+and connection options. Connected computers keep small, aspect-correct previews
+in RAM. Background connections become read-only, with preview requests and
+samples about every ten seconds. The selected screen gets an initial thumbnail,
+then repeated thumbnail work pauses while its main view continues at normal
+speed. Selecting a connected card
+resumes its existing session; only the selected computer receives remote input
+or optional clipboard sharing. Context-click a card to rename, disconnect, or
+remove it. Previews are not saved to disk.
+
+Live and connecting cards keep their saved order. Selecting a card does not
+move it. Offline, sleeping, or closing screens move to the bottom; when they
+become live again, their original position among live cards is restored.
 
 New server addresses/ports start in **Fit to Window**, showing the whole
 desktop. If text is too small, choose **Auto (Readable)** or a larger zoom,
@@ -153,7 +169,8 @@ password** to request deletion for that host and port; **Remove** also requests
 deletion of the selected profile's saved password. Removing a device still clears
 its profile and saved viewing preferences and frees the slot if that password
 cannot be deleted; an inline notice explains that the protected credential was
-retained. One remote session is active at a time. A full saved list still permits
+retained. Saved computers can remain connected in the background, with one
+selected for control. A full saved list still permits
 a one-off connection.
 
 All Keychain reads, saves, and deletions are noninteractive. Lantern never
@@ -165,6 +182,40 @@ the app does not use plaintext fallback storage or reset Keychain security.
 **Current preview limitation:** ad hoc signed updates can lose access to items
 saved by an earlier build. Reliable remembering across app updates has not
 been verified, and this preview does not claim that issue is fixed.
+
+## Add tabbed browser windows
+
+Choose **Add screen → Browser window…** to create a browser-window card, with an
+optional starting HTTP(S) address and name. An unnamed window gets a name such
+as **Browser 1**. Each card contains its own tab strip: use **+** or
+**Command–T** to add a tab, the tab's close button or **Command–W** to close it,
+and select tabs without changing sidebar cards. Closing the last page leaves
+a fresh new tab. Popup links open tabs inside that same browser window.
+
+Pages open inside Lantern using native WebKit; this is local browsing on your
+Mac, not a page opened on the remote VNC computer. Website sessions persist in
+Lantern's own WebKit data store, separate from Safari and Chrome. A website may
+still require its own sign-in; no Lantern account is required.
+
+Use Back, Forward, Reload, or **Command–L / R / [ / ]** in the selected tab.
+Use **Command–Shift–[ / ]** or **Control–Tab / Control–Shift–Tab** to switch
+tabs. These browser shortcuts apply only while that browser window is selected.
+Context-click a browser card to edit its window name/selected address or remove
+the window. Each window can keep up to 12 tabs; up to 100 browser-window cards
+can be recorded. Tab URLs, titles, and the selected tab are restored; existing
+single-address cards migrate into one-tab windows without changing their alias.
+At most six browser windows stay loaded. The least recently used inactive
+window sleeps when that limit is reached and reloads its saved tabs on demand
+when selected again, so unsaved forms and page state may be lost. Tabs load
+lazily when first selected. Background card previews refresh about every ten
+seconds; the selected page runs normally without repeated thumbnail work.
+Browser selection keeps existing VNC sessions connected without sending
+them keyboard or pointer input.
+
+This is a focused embedded browser: downloads are unsupported and reported
+inline, HTTP authentication/credential authorization dialogs are disabled, and
+popup/OAuth flows do not have full browser parity. Use a full browser for sites
+that need those capabilities. See the [FAQ](docs/wiki/FAQ.md#can-i-open-websites-in-lantern).
 
 ## Optional support and feedback
 
@@ -199,7 +250,7 @@ shows thanks; it makes no payment or pledge. Every feature remains free.
 
 ## Privacy and network security
 
-Lantern VNC connects directly to the selected server. It has no account
+Lantern VNC connects directly to your connected VNC servers. It has no account
 service, analytics, cloud relay, or licensing server. Saved server settings
 stay in the app's local preferences. VNC passwords stay in process memory
 for connection setup unless you explicitly enable **Remember password**.
@@ -211,6 +262,14 @@ password entry available. **Find…** makes bounded, user-requested local
 connections solely to check VNC greetings. Enabling
 clipboard sharing transfers clipboard text between your Mac and the server;
 leave it disabled if you do not want that transfer.
+
+Saved computers with an accessible remembered password can reconnect for
+background previews when the app opens. Those connections are read-only until
+selected. Computer and browser thumbnails stay in RAM only. Browser addresses
+and names are saved locally; cookies and website storage use Lantern's own
+persistent WebKit store. Pages make normal requests to the sites you open,
+which have their own privacy policies and may collect data. Lantern does not
+import Safari/Chrome data or turn browser activity into app analytics.
 
 The project website is separate from the desktop app. Its explicit feedback
 form sends the selected feedback kind, message, and random visitor/event
@@ -302,6 +361,12 @@ Run the local mock-server integration tests with Python 3:
 TEST_SANITIZE=1 ./tests/run-tests.sh
 ./tests/run-display-tests.sh
 ./tests/run-app-ui-tests.sh
+./tests/run-workspace-tests.sh
+./tests/run-browser-tests.sh
+./tests/run-browser-store-tests.sh
+./tests/run-screen-preview-tests.sh
+SCREEN_PREVIEW_SANITIZE=1 ./tests/run-screen-preview-tests.sh
+./tests/run-screen-cards-tests.sh
 ./tests/run-network-discovery-tests.sh
 ./tests/run-password-tests.sh
 ./tests/run-frame-update-tests.sh
@@ -316,6 +381,13 @@ viewport geometry and an owned offscreen native window with synthetic
 frames and events. It does not send input to a real remote desktop. If Metal
 or WindowServer is unavailable, that native harness reports exit 77 rather
 than a passing result.
+
+Workspace tests combine two owned loopback VNC servers and local HTTP pages
+inside an offscreen controller. They check retained session identity, input
+isolation, background thumbnails, browser switching/navigation, and removal.
+They use isolated preferences, fake credentials, and an ephemeral browser data
+store. Browser component tests cover their local controls and failure states;
+they do not establish compatibility with every public website or OAuth flow.
 
 The frame-update tests reconstruct pixels against an independent oracle
 through dirty updates, coalescing, resizing, stale display buffers, and

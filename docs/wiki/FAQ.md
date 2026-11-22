@@ -12,7 +12,27 @@ The supplied arm64 app requires an Apple Silicon Mac and macOS 13 or later. It c
 
 ## How many devices can I save?
 
-Up to three named device profiles, with one remote session active at a time. Profiles contain a name, host, and port. In Find, confirm an alias with **Save Computer** to save the profile immediately; this does not connect or save a password. A new profile saved after connecting can use the server's desktop name. Use **Rename…** to change its name. Passwords are kept separately in macOS Keychain only if you opt in. You can still enter a one-off connection when all saved slots are occupied.
+Up to three named VNC computer profiles. Profiles contain a name, host, and port. In Find, confirm an alias with **Save Computer** to save the profile immediately; this does not connect or save a password. A new profile saved after connecting can use the server's desktop name. Context-click its card for **Rename…**. Passwords are kept separately in macOS Keychain only if you opt in. You can still enter a one-off connection when all saved slots are occupied.
+
+Connected computers can stay connected while another card is selected. Background sessions become read-only, with requests paced roughly every ten seconds. Only the selected computer receives keyboard, pointer, and optional clipboard input. Returning to a connected card uses the same session; use its **Disconnect** action when you want to stop it. Saved computers with an accessible remembered password can reconnect for previews on launch.
+
+## Are card previews saved or live video?
+
+They are small sampled images kept in RAM, not recordings or saved screenshots. Background VNC requests and computer/browser previews are paced about every ten seconds and preserve aspect ratio; network/server delays can make samples older. After an initial thumbnail, repeated sampling pauses for the selected screen while its main desktop or page runs at normal foreground speed. A disconnected card may retain its labeled last capture. Sample age is not RTT, input delay, or a connectivity check.
+
+Live and connecting screens keep their saved order. Selecting a card does not reorder it. Offline, sleeping or closing screens move to the bottom; when they become live again, their original position among live cards is restored.
+
+## Can I open websites in Lantern?
+
+Yes. **Add screen → Browser window…** creates a browser-window card containing up to 12 tabs. Its name and starting HTTP(S) address are optional; a blank address starts a new tab. Tabs switch within that window without adding or selecting another sidebar card. Existing single-address cards migrate into one-tab windows, preserving their names and URLs.
+
+Use **+ / Command–T** to add a tab and its close button or **Command–W** to close it. Closing the last page leaves a fresh new tab. Back, Forward, Reload and **Command–L / R / [ / ]** work in the selected tab. Popup links open tabs in the same browser window. Context-click its sidebar card to edit the window name/selected address or remove the window.
+
+While that browser window is selected, **Command–Shift–[ / ]** switches to the previous/next tab, and **Control–Tab / Control–Shift–Tab** to the next/previous tab. Those shortcuts stay local to the selected browser window.
+
+Up to 100 browser windows can be recorded independently of the three-computer limit, with at most six windows loaded. Tabs load lazily when selected. A least recently used inactive window sleeps when another needs its slot; selecting it restores saved tab URLs and selection and loads pages on demand. Unsaved forms or page state may be lost. Loaded background tabs can keep running scripts and network requests until they sleep, close, or are removed.
+
+Pages run locally on your Mac with native WebKit, separate from the remote VNC computer. Lantern has its own persistent cookies and website storage, separate from Safari and Chrome; it does not import their sessions. Sites may require their own login and collect data under their own privacy policies. This is not a full-browser compatibility promise: downloads are unsupported and reported inline, HTTP authentication/credential authorization dialogs are disabled, and some OAuth/popup, extension, or other full-browser features may fail. Use a full browser for those cases. No Lantern account is required.
 
 ## Can I find a server without checking my router?
 
@@ -22,7 +42,7 @@ It does not search VPN interfaces, IPv6, Bonjour, public IPv4 networks, or every
 
 ## Why does 100% look small on my Retina screen?
 
-In 1.1.0-preview.6, a new endpoint starts in **Fit to Window**, which shows the whole desktop but can make text tiny on a 5K server. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use scroll bars or Hand to navigate.
+In 1.2.0-preview.1, a new endpoint starts in **Fit to Window**, which shows the whole desktop but can make text tiny on a 5K server. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use scroll bars or Hand to navigate.
 
 At 100%, one remote pixel maps to one drawable/backing pixel, rather than one Mac point. The final appearance also depends on macOS display scaling. These controls change only the local view, not the remote resolution or the number of remote pixels requested. See [Display and navigation](Display-and-Navigation.md).
 
@@ -61,7 +81,7 @@ With Hand off, wheel/trackpad scrolling is sent to the remote computer. Turn on 
 
 ## Is the new navigation release fully verified?
 
-1.1.0-preview.6 is an early-access release with the new controls implemented. Physical 1× external/2× Retina transitions, monitor disconnect/reconnect, and the complete manual hardware matrix remain unverified. Read the [release checklist](../RELEASE_CHECKLIST.md) before treating it as a stable release.
+1.2.0-preview.1 is an early-access release with the new controls implemented. Physical 1× external/2× Retina transitions, monitor disconnect/reconnect, and the complete manual hardware matrix remain unverified. Read the [release checklist](../RELEASE_CHECKLIST.md) before treating it as a stable release.
 
 ## Does resizing Lantern change the remote resolution?
 
@@ -75,7 +95,7 @@ Not by this build. Use a trusted LAN or a VPN/SSH tunnel that you establish sepa
 
 It has no account, analytics, licensing, or cloud-relay service. Device settings are stored locally. **Remember password** is off for a new host/port and attempts to save only after a successful connection, using the classic macOS login Keychain with synchronization disabled. Plaintext passwords are never saved in preferences or profiles, or automatically included in feedback exports. Review your own notes before sharing them. This does not promise exclusion from every backup. Unchecking the box or removing its profile requests deletion of the saved password. Profile removal still clears the device and its saved viewing preferences and frees the slot if a protected password cannot be deleted; an inline notice explains that the credential was retained. Keychain operations never open an authentication dialog or offer an approval action. Manual VNC password entry remains available.
 
-Optional clipboard sharing deliberately transfers text between your Mac and the selected server; leave it disabled if you do not want that transfer. **Find…** makes bounded connections on your chosen local network and port only when requested.
+Optional clipboard sharing deliberately transfers text between your Mac and the selected server; leave it disabled if you do not want that transfer. **Find…** makes bounded connections on your chosen local network and port only when requested. Connected background computers make paced VNC requests for their RAM-only previews. Local browser screens make normal requests to the websites you open and use Lantern's own persistent WebKit cookies/storage; those sites can have their own analytics. This is separate from Lantern's optional project-website counts.
 
 ## Why is a remembered password unavailable?
 
@@ -83,7 +103,7 @@ All Keychain operations are noninteractive. If access fails, Lantern reports it 
 
 ## Does it support file transfer, audio, printing, or multiple sessions?
 
-The current app provides display, keyboard/pointer input, and optional text clipboard sharing. It does not provide file transfer, remote audio, printing, recording, or concurrent remote sessions.
+The current app provides display, keyboard/pointer input, optional text clipboard sharing, and local browser screens. VNC sessions can remain connected in the background, with only the selected one controllable. It does not provide VNC file transfer, remote audio, printing, or recording. Browser downloads are also unsupported.
 
 ## Why does macOS warn when I open the app?
 

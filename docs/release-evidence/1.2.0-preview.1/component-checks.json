@@ -1,0 +1,14 @@
+{
+  "browserStoreChecks": 197,
+  "previewSamplerChecks": 71,
+  "previewSamplerAddressSanitizer": "passed",
+  "nativeCardChecks": 43,
+  "nativeProtocolSessions": 116,
+  "nativeProtocolAddressSanitizer": "bridge and LibVNCClient instrumented; JPEG Release SIMD",
+  "protocolHookClients": 100,
+  "concurrentRTTGetters": 8000,
+  "scope": "owned synthetic data and loopback fixtures; no user credentials or remote desktop content",
+  "nativeCardStatus": "passed; new invalidation/image mutation observations with changed-image positive control",
+  "nativeCardBaselineChecks": 41,
+  "nativeProtocolEvidence": "retained passing run; native bridge and LibVNCClient source unchanged"
+}

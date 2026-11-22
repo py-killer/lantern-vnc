@@ -32,7 +32,7 @@ Uncheck **Remember password** to request deletion of the saved value; **Remove**
 
 ## The desktop is tiny, cropped, or an edge is unreachable
 
-In **1.1.0-preview.6**, new endpoints start in **Fit to Window** so the whole desktop is visible. Fit can make a 5K desktop's text tiny. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use the visible scroll bars or **Hand** to reach the edges. Hand makes dragging, scrolling, and arrow keys move the local view. Press Escape or turn Hand off to resume remote input. Normal scrolling with Hand off controls the remote app.
+In **1.2.0-preview.1**, new endpoints start in **Fit to Window** so the whole desktop is visible. Fit can make a 5K desktop's text tiny. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use the visible scroll bars or **Hand** to reach the edges. Hand makes dragging, scrolling, and arrow keys move the local view. Press Escape or turn Hand off to resume remote input. Normal scrolling with Hand off controls the remote app.
 
 At 100%, one remote pixel maps to one drawable/backing pixel, not one Mac point. Retina and macOS scaled display settings affect perceived text size. Local zoom never changes the server's resolution.
 
@@ -49,6 +49,8 @@ The app remembers its last normal window size and position. When reopened withou
 Try **Fit to Window**, then compare the remote pointer with a clearly marked test target. Note whether the offset appears after changing scale, scrolling, reconnecting, or changing the remote resolution. Include synthetic target coordinates when possible; avoid screenshots of sensitive desktops.
 
 ## The image is stale, slow, or soft
+
+Card previews are sampled, not live video. Background VNC sessions are read-only with requests paced roughly every ten seconds. The selected screen stops repeated thumbnail sampling after an initial image; its main desktop/browser still runs normally. Select a computer to resume foreground updates on its existing connection. A disconnected card can retain a labeled last capture; its image does not prove that the server is reachable. Thumbnails stay in RAM and are not saved screenshots. Selecting a live card does not move it. Offline, sleeping or closing cards move to the bottom and regain their original live-card position when available again.
 
 Preview 5 reduces local copying for small changes and can send queued input while a partial screen update is waiting for more data. It preserves pixel quality and the existing compression presets. It does not change VNC network compression or remove server/network delays; large full-screen changes still require full-image work.
 
@@ -68,13 +70,23 @@ Low RTT does not include screen capture, encoding, decoding, or rendering delay.
 
 ## Connected, but keyboard or mouse input does nothing
 
-Turn off **Hand**, click the remote image to focus it, turn off **View only**, and confirm that the server/password grants remote control. A server-issued view-only connection cannot be promoted by changing Lantern's checkbox. Try the explicit **Ctrl–Alt–Del** action for a remote secure-attention screen.
+Select the computer's card first: browser screens and background computer previews never send it input. Turn off **Hand**, click the remote image to focus it, turn off **View only**, and confirm that the server/password grants remote control. A server-issued view-only connection cannot be promoted by changing Lantern's checkbox. Try the explicit **Ctrl–Alt–Del** action for a remote secure-attention screen.
 
 If a modifier appears stuck after a focus change, disconnect and report the key sequence. Include which Mac modifiers were held, but no sensitive text typed remotely.
 
 ## Clipboard text is missing or changed
 
 Enable **Share clipboard text** only if you intend to transfer text. Clipboard sends are suppressed in View only mode. This is text sharing, not file or image transfer. Servers using the older Latin-1 clipboard protocol cannot represent every Unicode character; unsupported characters may become `?` unless the UTF-8 extension is negotiated.
+
+## A browser page is sleeping, cannot load, or loses its form
+
+Each browser card is a window containing up to 12 tabs; change pages using its tab strip rather than another sidebar card. Closing the last tab leaves a fresh new tab. Popup links stay in that browser window as new tabs. Existing one-address cards migrate into one-tab windows with their aliases and URLs preserved.
+
+Only six browser windows stay loaded. A least recently used inactive window sleeps when another needs its slot; selecting that card restores its saved tabs/selection and loads pages on demand, so unsaved forms or page state may be lost. Up to 100 window cards can remain recorded. Removing a window stops all its loaded tabs; switching away alone leaves loaded tabs running with about ten-second background previews.
+
+Check the selected tab's HTTP(S) address and use the inline **Retry** action after a network failure. Use the address field or context-click **Edit…** on the card to correct its selected address or window name. Back/Forward/Reload and Command–L/R/[/] affect the selected local browser tab, not the VNC computer. Command–T adds a tab; Command–W closes that tab rather than the browser-window card.
+
+Browser downloads are unsupported and reported inline. HTTP authentication and credential authorization dialogs are disabled. Some OAuth/popup flows depend on full-browser behavior that Lantern does not implement; use a full browser for those sites. Safari or Chrome sessions are not imported, so a website may require a separate login in Lantern. Site content, scripts, and cookies are governed by that site's behavior and privacy policy.
 
 ## Prepare a helpful report
 

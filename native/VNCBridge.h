@@ -76,6 +76,15 @@ int vncv_pointer(vncv_client *client, int x, int y, int button_mask);
 int vncv_clipboard(vncv_client *client, const char *utf8, size_t length);
 int vncv_refresh(vncv_client *client);
 int vncv_set_view_only(vncv_client *client, int view_only);
+/* Queue preview pacing on the same worker. 0 preserves normal request cadence;
+   a positive interval defers the next automatic incremental request until that
+   many milliseconds after the preceding update completes. One already-issued
+   request may still complete. Input/cancellation keep running without sleeps.
+   Explicit vncv_refresh bypasses pacing and requests a full framebuffer; use
+   interval 0 + refresh when promoting a preview. This does not change JPEG,
+   encodings, remote resolution, or view-only state. Resets to 0 at each start.
+   Returns 1 if queued, 0 under the same queue/lifecycle rules as other controls. */
+int vncv_set_update_interval(vncv_client *client, uint32_t milliseconds);
 
 #ifdef __cplusplus
 }

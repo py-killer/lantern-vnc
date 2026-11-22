@@ -2,9 +2,21 @@
 
 [Wiki home](Home.md) · [Getting started](Getting-Started.md) · [Troubleshooting](Troubleshooting.md)
 
-This guide describes the implemented **1.1.0-preview.6**. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.
+This guide describes the implemented **1.2.0-preview.1**. It remains a preview: physical external-display transitions and the complete manual hardware matrix have not been verified.
 
 The server supplies its desktop resolution. Lantern's zoom, window size, and local navigation change your view of that image; they never change the server's display resolution.
+
+## Select a screen
+
+Choose a named card in the sidebar. Connected VNC computers retain their sessions when another card is selected. Background sessions are read-only and request updates at roughly ten-second intervals; the selected computer resumes foreground updates and alone receives remote input. Switching to a local browser sends no input to the VNC computers. Switching does not replace the existing Metal viewport or change the server's resolution.
+
+Computer thumbnails are small, aspect-correct samples kept in RAM only. Background preview requests/samples are normally paced about every ten seconds. The selected screen receives an initial thumbnail, then repeated sampling pauses while its full desktop or browser page continues at normal foreground speed. A card's age is the time since its last sample; a disconnected card may show a labeled last capture. Do not use thumbnails or their ages as a latency measurement or proof of connectivity.
+
+Live and connecting cards keep their saved order, and selecting a card does not move it. Offline, sleeping or closing screens move to the bottom; on becoming live again, they return to their original position among live cards. Each browser card contains its own tab strip, so switching its tabs leaves the sidebar selection unchanged. Use **+ / Command–T** to add a tab and its close button or **Command–W** to close one; closing the last page leaves a fresh new tab.
+
+In the selected browser window, **Command–Shift–[ / ]** chooses the previous/next tab and **Control–Tab / Control–Shift–Tab** the next/previous tab. **Command–L / R / [ / ]** focuses the address, reloads, or navigates Back/Forward within its selected tab. Browser shortcuts do not send input to a VNC computer.
+
+Context-click computer cards to rename, disconnect, or remove them, and browser cards to edit or remove them. **Connection settings** reveals the selected VNC endpoint's fields. Browser toolbar shortcuts apply locally to WebKit; VNC zoom/input controls apply to the selected remote desktop. See [Getting started](Getting-Started.md#add-a-local-website) for browser limits.
 
 ## Choose a viewing mode
 

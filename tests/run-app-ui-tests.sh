@@ -26,10 +26,8 @@ mkdir -p "$TEST_DIR/ui-module-cache"
 xcrun swiftc -O -D APP_UI_HARNESS -swift-version 5 -target arm64-apple-macosx13.0 \
   -module-cache-path "$TEST_DIR/ui-module-cache" \
   -import-objc-header "$PROJECT_DIR/native/VNCBridge.h" \
-  -framework AppKit -framework Metal -framework MetalKit -framework QuartzCore -framework Network -framework Security \
-  "$PROJECT_DIR/App/App.swift" "$PROJECT_DIR/App/WindowPlacement.swift" "$PROJECT_DIR/App/DeviceStore.swift" "$PROJECT_DIR/App/ConnectionPreferences.swift" "$PROJECT_DIR/App/PasswordStore.swift" "$PROJECT_DIR/App/NetworkDiscovery.swift" "$PROJECT_DIR/App/VNCDiscoveryController.swift" \
-  "$PROJECT_DIR/App/NetworkLatency.swift" "$PROJECT_DIR/App/VNCSession.swift" "$PROJECT_DIR/App/DesktopViewport.swift" \
-  "$PROJECT_DIR/App/FrameUpdateStore.swift" "$PROJECT_DIR/App/MetalDesktop.swift" "$PROJECT_DIR/tests/app_ui_harness.swift" \
+  -framework AppKit -framework Metal -framework MetalKit -framework QuartzCore -framework Network -framework Security -framework WebKit \
+  "$PROJECT_DIR"/App/*.swift "$PROJECT_DIR/tests/app_ui_harness.swift" \
   "$BUILD_DIR/VNCBridge.o" "$BUILD_DIR/vnc/libvncclient.a" "$BUILD_DIR/jpeg/libjpeg.a" \
   -lz -o "$TEST_DIR/app-ui-harness"
 

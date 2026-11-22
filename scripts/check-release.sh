@@ -16,6 +16,8 @@ xcrun swiftc -swift-version 5 -module-cache-path "$TEST_DIR/module-cache" \
 "$PROJECT_DIR/tests/run-connection-preferences-tests.sh"
 "$PROJECT_DIR/tests/run-network-latency-tests.sh"
 "$PROJECT_DIR/tests/run-browser-store-tests.sh"
+bash "$PROJECT_DIR/tests/run-credential-vault-client-tests.sh"
+"$PROJECT_DIR/tests/run-external-browser-tests.sh"
 "$PROJECT_DIR/tests/run-screen-preview-tests.sh"
 "$PROJECT_DIR/tests/run-window-placement-tests.sh" --geometry-only
 "$PROJECT_DIR/tests/run-frame-update-tests.sh"
@@ -37,9 +39,12 @@ if [[ "$mode" == --full ]]; then
   "$PROJECT_DIR/tests/run-performance-display-tests.sh"
   "$PROJECT_DIR/tests/run-screen-cards-tests.sh"
   "$PROJECT_DIR/tests/run-browser-tests.sh"
+  EXTERNAL_BROWSER_PANEL_TESTS=1 "$PROJECT_DIR/tests/run-external-browser-tests.sh"
+  "$PROJECT_DIR/tests/run-external-workspace-tests.sh"
   "$PROJECT_DIR/tests/run-workspace-tests.sh"
   "$PROJECT_DIR/tests/run-app-ui-tests.sh"
   "$PROJECT_DIR/tests/run-connection-settings-tests.sh"
+  "$PROJECT_DIR/tests/run-credential-io-tests.sh"
   "$PROJECT_DIR/tests/run-discovery-ui-tests.sh"
 else
   xcrun swiftc -swift-version 5 -O -module-cache-path "$TEST_DIR/module-cache" \

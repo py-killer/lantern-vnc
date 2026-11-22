@@ -13,7 +13,7 @@ The downloadable app does not need Xcode, Python, CMake, or a Lantern account. D
 ## Open and connect
 
 1. Get the Mac ZIP from the [project website](https://py-killer.github.io/lantern-vnc/) and extract it. Move **Lantern VNC.app** to Applications or another folder you control.
-2. Open the app. Current builds are ad hoc signed and not Apple-notarized. If macOS blocks a copy you trust, use Finder's contextual **Open** command or review the available **Open Anyway** option in Privacy & Security. Do not disable Gatekeeper system-wide.
+2. Open the app. The published preview uses a project self-signed publisher certificate. Apple Developer ID signing and notarization remain pending; development builds use ad hoc signatures. If macOS blocks a copy you trust, use Finder's contextual **Open** command or review the available **Open Anyway** option in Privacy & Security. Do not disable Gatekeeper system-wide.
 3. If macOS asks for local network access, allow it so Lantern can reach your server.
 4. Open **Connection settings** if its fields are hidden. Set the TCP port, usually `5900`, and choose **Find…** beside Server. If one server is found, it is selected automatically. Confirm or edit its alias and choose **Save Computer** to add it to your device list immediately. If several are found, select the one you want first. You can enter a known address manually instead; **Add screen → Computer…** prepares another connection. A server on display `:1` often uses `5901`; enter its actual TCP port, not the display number.
 5. Enter the password configured for VNC on the server and choose **Connect**. A Windows or macOS account password is not necessarily the VNC password. Classic VNC authentication uses the first eight password bytes. **Remember password** is off for a new endpoint; enable it only if you want macOS Keychain to save the password after a successful connection.
@@ -39,9 +39,13 @@ Live and connecting cards keep their saved order; selecting a card leaves it in 
 
 When the app opens, saved computers with a readable remembered password can reconnect for previews. If a password is unavailable, select the computer and connect manually. Preview ages describe the last sampled image, not a guarantee that the server is still reachable.
 
-Passwords are not saved in device profiles. If you enable **Remember password**, Lantern attempts to save the password separately in the classic macOS login Keychain after a successful connection. Keychain synchronization is disabled. Uncheck the box to request deletion; **Remove** also requests removal of that profile's saved password. Removing a device clears its profile and saved viewing preferences and frees the slot even if the protected password cannot be deleted. An inline notice then explains that the password was retained; the protected Keychain item remains unchanged. A full saved list does not prevent a one-off connection using the Server and Port fields.
+Passwords are not saved in device profiles. If you enable **Remember password**, Lantern attempts to save the password separately in the classic macOS login Keychain after a successful connection. Keychain synchronization is disabled. After disconnecting, uncheck the box to request deletion; **Remove** also requests removal of that profile's saved password. Removing a device clears its profile and saved viewing preferences and frees the slot even if the protected password cannot be deleted. An inline notice then explains that the password was retained; the protected Keychain item remains unchanged. A full saved list does not prevent a one-off connection using the Server and Port fields.
 
-Every Keychain read, save, and deletion is noninteractive, with no authentication dialog or approval button. A failed save turns **Remember password** off. Manual VNC password entry remains available, with no plaintext fallback or Keychain security reset. Ad hoc signed app updates can lose access to earlier saved items; reliable cross-update persistence has not been verified for this preview.
+Set **Remember password** before connecting. It is disabled while connecting or connected, including an automatically restored connection; disconnect before changing it.
+
+Every Keychain read, save, and deletion is noninteractive, with no authentication dialog or approval button. An unconfirmed save turns **Remember password** off and disables automatic use, though a protected copy may remain. Forget disables automatic use even if deletion cannot be confirmed. Manual VNC entry remains available, with no plaintext fallback or security reset.
+
+Newly saved passwords use the fixed, signed **v2 helper**, which joins the viewer’s existing macOS security session. Seventeen checks exercised the actual public helper with synthetic entries in the default login Keychain, without unlocking it or enabling authentication UI. Updates must preserve that helper and publisher identity. An older protected item migrates only when macOS already permits its read; a protected synthetic v1 item was correctly denied and left unchanged. This does not establish recovery of any owner’s older password.
 
 ## Keep your viewing preferences
 
@@ -53,17 +57,20 @@ Lantern remembers zoom mode—including a custom pinch scale—and picture prese
 
 ## Add a local website
 
-Choose **Add screen → Browser window…**, enter an optional starting HTTP(S) address and name, then choose **Add Browser**. Leaving the address empty starts with a new tab; leaving the name empty gives the window a name such as **Browser 1**. This browses locally with WebKit inside Lantern, not on the remote computer. Lantern's persistent website session is separate from Safari and Chrome; a site may require its own login.
+Choose **Add screen → Browser window…**. The default is **Lantern · inside this window**; explicitly select another browser if needed:
 
-Each card is one browser window with its own tab strip. Use **+** or **Command–T** for another tab, click a tab to switch pages without changing the sidebar selection, and close a tab with its close button or **Command–W**. Closing the last page leaves a fresh new tab. Popup links open another tab within the same window.
+- **Lantern · inside this window** creates a WebKit window inside Lantern, with optional starting address/name and its own website session.
+- **Safari · opens outside Lantern** or **Google Chrome · opens outside Lantern** opens the actual installed app outside Lantern. Supply an HTTP(S) starting address; profiles, logins and extensions stay in that browser. Only located installed browsers appear.
 
-Back, Forward, Reload and **Command–L / R / [ / ]** act on the selected tab. Context-click its sidebar card to edit the window name/selected address or remove the window. Tab URLs, titles and selection are saved; existing single-address cards migrate to one-tab windows with their aliases preserved.
+For an installed browser, the first explicit card selection opens the saved address. Later selections switch to the running browser app without opening it again. **Open Website** deliberately opens the address again; **Change URL…** edits the target. If the browser has closed, selecting its card reopens it. Lantern does not automatically launch external browsers when restoring cards. Removing a card does not close Safari/Chrome. Switching cannot guarantee a particular browser window, tab or profile; choose the profile in the actual browser. Existing cards keep their browser type, so add a new card to choose a different browser.
 
-Within the selected browser window, **Command–Shift–[ / ]** switches to the previous/next tab; **Control–Tab / Control–Shift–Tab** goes to the next/previous tab. These browser shortcuts do not target background windows or VNC computers.
+For the internal Lantern browser, leave the address empty for a new tab and the name empty for a numbered **Browser 1** alias. Its tab strip stays inside one sidebar card: **+ / Command–T** adds a tab, the tab close button or **Command–W** closes one, and closing the last page leaves a fresh new tab. Popup links open another tab in the same internal window. **Command–Shift–[ / ]** and **Control–Tab / Control–Shift–Tab** switch internal tabs.
 
-Each browser window can record up to 12 tabs; up to 100 window cards can be saved. At most six windows stay loaded. Tabs load lazily, and the least recently used inactive window sleeps when needed. Selecting a sleeping window reloads its saved tabs on demand, which can discard unsaved forms and page state. Background previews refresh about every ten seconds; the selected browser runs normally without repeated thumbnail work.
+Back/Forward and **Command–L / R / [ / ]** act on the selected internal tab. The Reload toolbar button becomes **Stop** while that tab loads. Stop cancels its pending load while keeping the requested address for another try; afterward it becomes Reload. Command–R always reloads. Context-click the card to edit the name/selected address or remove it. Internal tab URLs/titles and selection persist, including migration of older single-address cards.
 
-Downloads are unsupported and show an inline message. HTTP authentication and credential authorization dialogs are disabled; some popup/OAuth flows need a full browser. Pages make normal network requests and can keep cookies/storage in Lantern's WebKit store. See the [browser FAQ](FAQ.md#can-i-open-websites-in-lantern).
+Up to 100 browser cards can be saved. Internal windows keep up to 12 tabs each, with at most six internal windows loaded. Tabs load lazily; inactive least recently used internal windows sleep and restore tabs on demand, which can lose unsaved forms/page state. Their background thumbnails refresh about every ten seconds, while repeated sampling pauses for the selected screen. External-browser cards use an app icon/status without capturing screenshots or accessing profile files.
+
+The internal browser does not import installed Safari/Chrome extensions or sessions. Downloads are unsupported, HTTP authentication/credential authorization dialogs are disabled, and some sites or OAuth/extension workflows need an actual browser. A website may also display its own verification page. See the [browser FAQ](FAQ.md#can-i-open-websites-in-lantern) and [verification help](Troubleshooting.md#a-website-shows-verification-or-keeps-loading).
 
 ## Before using clipboard sharing
 
@@ -71,4 +78,4 @@ Downloads are unsupported and show an inline message. HTTP authentication and cr
 
 Choose **Disconnect** when finished. **Command–K** connects or disconnects, **Control–Command–F** toggles full screen, and **Control–Command–S** shows/hides the connection sidebar. See the [display guide](Display-and-Navigation.md) for zoom and Hand controls.
 
-These controls are implemented in 1.2.0-preview.1. It remains a preview while physical display transitions and the manual hardware matrix are unverified.
+These controls are implemented in 1.2.0-preview.2. It remains a preview while physical display transitions and the manual hardware matrix are unverified.

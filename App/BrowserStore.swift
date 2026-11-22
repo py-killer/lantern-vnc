@@ -14,22 +14,28 @@ struct BrowserScreen: Codable, Equatable {
     var title: String
     var tabs: [BrowserTab]
     var selectedTabID: String
+    /// nil keeps the existing in-app WebKit window. Installed browsers retain
+    /// their own profiles/extensions; Lantern never imports that data.
+    var browserBundleIdentifier: String?
     var selectedTab: BrowserTab? { tabs.first { $0.id == selectedTabID } ?? tabs.first }
     /// Compatibility for existing card/navigation callers.
     var url: String { selectedTab?.url ?? "" }
 
-    init(id: String, title: String, url: String) {
+    init(id: String, title: String, url: String, browserBundleIdentifier: String? = nil) {
         let tab=BrowserTab(id:UUID().uuidString,title:title,url:url)
-        self.init(id:id,title:title,tabs:[tab],selectedTabID:tab.id)
+        self.init(id:id,title:title,tabs:[tab],selectedTabID:tab.id,browserBundleIdentifier:browserBundleIdentifier)
     }
-    init(id: String, title: String, tabs: [BrowserTab], selectedTabID: String) {
+    init(id: String, title: String, tabs: [BrowserTab], selectedTabID: String, browserBundleIdentifier: String? = nil) {
         self.id=id;self.title=title;self.tabs=tabs;self.selectedTabID=selectedTabID
+        self.browserBundleIdentifier=browserBundleIdentifier
     }
-    private enum CodingKeys: String, CodingKey { case id,title,url,tabs,selectedTabID }
+    private enum CodingKeys: String, CodingKey { case id,title,url,tabs,selectedTabID,browserBundleIdentifier }
     init(from decoder: Decoder) throws {
         let values=try decoder.container(keyedBy:CodingKeys.self)
         id=try values.decode(String.self,forKey:.id)
         title=(try? values.decode(String.self,forKey:.title)) ?? ""
+        browserBundleIdentifier=try values.decodeIfPresent(String.self,forKey:.browserBundleIdentifier)
+        try BrowserScreenStore.validateBrowser(browserBundleIdentifier)
         if values.contains(.tabs) {
             tabs=try values.decode([LossyBrowserValue<BrowserTab>].self,forKey:.tabs).compactMap(\.value)
             selectedTabID=(try? values.decode(String.self,forKey:.selectedTabID)) ?? tabs.first?.id ?? ""
@@ -44,6 +50,7 @@ struct BrowserScreen: Codable, Equatable {
         try values.encode(id,forKey:.id);try values.encode(title,forKey:.title)
         try values.encode(url,forKey:.url);try values.encode(tabs,forKey:.tabs)
         try values.encode(selectedTabID,forKey:.selectedTabID)
+        try values.encodeIfPresent(browserBundleIdentifier,forKey:.browserBundleIdentifier)
     }
 }
 
@@ -54,7 +61,7 @@ private struct LossyBrowserValue<Value: Decodable>: Decodable {
 }
 
 enum BrowserScreenError: LocalizedError {
-    case invalidURL, unsupportedScheme, embeddedCredentials, limitReached, invalidTabs, tabLimitReached
+    case invalidURL, unsupportedScheme, embeddedCredentials, limitReached, invalidTabs, tabLimitReached, unsupportedBrowser
     var errorDescription: String? {
         switch self {
         case .invalidURL: return "Use a valid website address and TCP port."
@@ -63,6 +70,7 @@ enum BrowserScreenError: LocalizedError {
         case .limitReached: return "The browser-screen list is full. Remove an unused screen first."
         case .invalidTabs: return "Keep at least one valid tab and select a tab in this browser window."
         case .tabLimitReached: return "A browser window can keep up to 12 tabs. Close an unused tab first."
+        case .unsupportedBrowser: return "Choose Safari, Google Chrome, or the browser inside Lantern."
         }
     }
 }
@@ -83,11 +91,12 @@ final class BrowserScreenStore {
         var ids = Set<UUID>()
         for screen in saved.compactMap(\.value) {
             guard screens.count < Self.maximumScreens,let identity=UUID(uuidString:screen.id),!ids.contains(identity),
-                  let state=try? Self.validatedTabs(screen.tabs,selectedTabID:screen.selectedTabID,recovering:true) else { continue }
+                  let state=try? Self.validatedTabs(screen.tabs,selectedTabID:screen.selectedTabID,recovering:true),
+                  screen.browserBundleIdentifier == nil || state.tabs.first(where:{$0.id == state.selected})?.url.isEmpty == false else { continue }
             ids.insert(identity)
             let fallback=state.tabs.first(where:{$0.id == state.selected})
                 .flatMap { URL(string:$0.url)?.host } ?? "Browser window"
-            screens.append(BrowserScreen(id:screen.id,title:Self.cleanTitle(screen.title,fallback:fallback),tabs:state.tabs,selectedTabID:state.selected))
+            screens.append(BrowserScreen(id:screen.id,title:Self.cleanTitle(screen.title,fallback:fallback),tabs:state.tabs,selectedTabID:state.selected,browserBundleIdentifier:screen.browserBundleIdentifier))
         }
         // Persist generated legacy tab IDs and repaired selections once, so a
         // second launch restores the same tab identities instead of remigrating.
@@ -95,17 +104,20 @@ final class BrowserScreenStore {
     }
 
     @discardableResult
-    func add(title: String, url: String) throws -> BrowserScreen {
+    func add(title: String, url: String, browserBundleIdentifier: String? = nil) throws -> BrowserScreen {
         guard screens.count < Self.maximumScreens else { throw BrowserScreenError.limitReached }
+        try Self.validateBrowser(browserBundleIdentifier)
         let address = try Self.sanitizedURL(url)
-        let screen = BrowserScreen(id: UUID().uuidString, title: Self.cleanTitle(title, fallback: "Browser \(screens.count+1)"), url: address.absoluteString)
+        let screen = BrowserScreen(id: UUID().uuidString, title: Self.cleanTitle(title, fallback: "Browser \(screens.count+1)"), url: address.absoluteString,browserBundleIdentifier:browserBundleIdentifier)
         screens.append(screen); persist(); return screen
     }
     @discardableResult
-    func add(title: String, tabs: [BrowserTab], selectedTabID: String) throws -> BrowserScreen {
+    func add(title: String, tabs: [BrowserTab], selectedTabID: String, browserBundleIdentifier: String? = nil) throws -> BrowserScreen {
         guard screens.count < Self.maximumScreens else { throw BrowserScreenError.limitReached }
+        try Self.validateBrowser(browserBundleIdentifier)
         let state=try Self.validatedTabs(tabs,selectedTabID:selectedTabID)
-        let screen=BrowserScreen(id:UUID().uuidString,title:Self.cleanTitle(title,fallback:"Browser \(screens.count+1)"),tabs:state.tabs,selectedTabID:state.selected)
+        if browserBundleIdentifier != nil, state.tabs.first(where:{$0.id == state.selected})?.url.isEmpty != false { throw BrowserScreenError.invalidURL }
+        let screen=BrowserScreen(id:UUID().uuidString,title:Self.cleanTitle(title,fallback:"Browser \(screens.count+1)"),tabs:state.tabs,selectedTabID:state.selected,browserBundleIdentifier:browserBundleIdentifier)
         screens.append(screen);persist();return screen
     }
     @discardableResult
@@ -124,6 +136,7 @@ final class BrowserScreenStore {
     func updateTabs(id: String, tabs: [BrowserTab], selectedTabID: String) throws -> BrowserScreen? {
         guard let index=screens.firstIndex(where:{$0.id == id}) else { return nil }
         let state=try Self.validatedTabs(tabs,selectedTabID:selectedTabID)
+        if screens[index].browserBundleIdentifier != nil, state.tabs.first(where:{$0.id == state.selected})?.url.isEmpty != false { throw BrowserScreenError.invalidURL }
         var updated=screens[index];updated.tabs=state.tabs;updated.selectedTabID=state.selected
         screens[index]=updated;persist();return updated
     }
@@ -190,6 +203,11 @@ final class BrowserScreenStore {
         let plain = title.unicodeScalars.map { CharacterSet.controlCharacters.contains($0) ? " " : String($0) }.joined()
         let collapsed = plain.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         return collapsed.isEmpty ? fallback : String(collapsed.prefix(80))
+    }
+    static func validateBrowser(_ identifier:String?) throws {
+        guard identifier == nil || identifier == "com.apple.Safari" || identifier == "com.google.Chrome" else {
+            throw BrowserScreenError.unsupportedBrowser
+        }
     }
     private func persist() {
         if let data = try? JSONEncoder().encode(screens) { defaults.set(data, forKey: Self.key) }

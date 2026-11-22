@@ -1,0 +1,24 @@
+{
+  "JoinExistingSession": true,
+  "bundleName": "LanternCredentialVaultV2.xpc",
+  "certificateSHA1": "92c366cdd793fd085ac837fbb4e53b9a933d5a35",
+  "codeIdentifier": "local.lantern.vnc.credential-vault",
+  "connectionServiceName": "local.lantern.vnc.credential-vault-v2",
+  "files": {
+    "Contents/Info.plist": "6f46236b90500d5b4bd9be82daf3012d9ac9a74ff5a734d4ad1a4bf76654c4b1",
+    "Contents/MacOS/LanternCredentialVault": "2bf9b08e5ebddf498de0f8b0135aa10b03d0f8f37cb443cb49f8ce5c98fb53d7",
+    "Contents/_CodeSignature/CodeResources": "6686de10a28a2fe11b36cbb86dcbacc827cfc4ea116b4dabf1845e5aee629e9b"
+  },
+  "helperCDHash": "83b274f4e454295bc26abfc890a152f95688c4a8",
+  "helperGeneration": 2,
+  "passwordService": "local.lantern.vnc.password.vault.v2",
+  "signerArchiveSHA256": "d1a532150adaf90048260d76359261aa716abafc45c53c5dc18845029184334a",
+  "signerVersion": "rcodesign0.29.0",
+  "sourceInputs": [
+    "App/VaultProtocol.swift",
+    "App/PasswordStore.swift",
+    "App/VaultV2Protocol.swift",
+    "native/credential-vault/v2/main.swift"
+  ],
+  "sourceSHA256": "d377b83d381653c405927c4ffbea8fceaedaa91dfd1f049c8230c1562e819a8b"
+}

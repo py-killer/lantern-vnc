@@ -371,7 +371,15 @@ struct WorkspaceHarness {
         expect(controller.testingComputerPreviewCount == 0 && controller.testingCurrentSession == nil,"late removed-computer callbacks cannot repopulate thumbnails or selected session")
         expect(DeviceStore(defaults:preferences).devices.isEmpty && BrowserScreenStore(defaults:preferences).screens.isEmpty,"computer and browser removals persist independently in the isolated workspace")
         expect(credentials.saves.isEmpty,"automatic previews and switching never silently save entered or fixture credentials")
-        expect(UserDefaults.standard.persistentDomain(forName:"local.lantern.vnc") as NSDictionary? == productionBefore as NSDictionary?,"production preferences remain untouched")
+        let productionAfter=UserDefaults.standard.persistentDomain(forName:"local.lantern.vnc")
+        if productionAfter as NSDictionary? != productionBefore as NSDictionary? {
+            let keys=Set(productionBefore?.keys.map{$0} ?? []).union(productionAfter?.keys.map{$0} ?? [])
+            let changed=keys.filter { (productionBefore?[$0] as? NSObject) != (productionAfter?[$0] as? NSObject) }.sorted()
+            // Diagnostic names only: never print preferences, endpoints,
+            // website URLs, clipboard contents, or stored values.
+            fputs("Changed production preference key names: "+changed.joined(separator:", ")+"\n",stderr)
+        }
+        expect(productionAfter as NSDictionary? == productionBefore as NSDictionary?,"production preferences remain untouched")
         expect(!window.isKeyWindow && window.attachedSheet == nil,"owned workspace finishes without user focus or an authorization sheet")
         let output:[String:Any] = ["checks":checks,"routerSelectionPairs":4000,"vncSessions":2,"vncReconnects":0,
             "browserWindows":9,"testedTabbedWindows":2,"maximumLoadedBrowserPanes":6,

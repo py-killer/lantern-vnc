@@ -97,7 +97,7 @@ final class BrowserScreenPane: NSView, WKNavigationDelegate, WKUIDelegate {
         configure(sidebar,"sidebar.left","Hide connection sidebar","browserSidebarToggle",#selector(toggleSidebar))
         configure(back,"chevron.left","Back","browserBack",#selector(goBack))
         configure(forward,"chevron.right","Forward","browserForward",#selector(goForward))
-        configure(reload,"arrow.clockwise","Reload website","browserReload",#selector(reloadPage))
+        configure(reload,"arrow.clockwise","Reload website","browserReload",#selector(reloadOrStopPage))
         configure(fullScreen,"arrow.up.left.and.arrow.down.right","Full screen","browserFullScreen",#selector(toggleFullScreen))
         configure(newTab,"plus","New tab (Command–T)","browserNewTab",#selector(addBlankTab))
         address.identifier = .init("browserAddress");address.placeholderString="Website address"
@@ -278,12 +278,34 @@ final class BrowserScreenPane: NSView, WKNavigationDelegate, WKUIDelegate {
     @objc private func navigateAddress() { do { load(try BrowserScreenStore.sanitizedURL(address.stringValue));focus() } catch { showError(error.localizedDescription,id:selectedTabID) } }
     @objc private func goBack() { states[selectedTabID]?.message=nil;webView.goBack();focus() }
     @objc private func goForward() { states[selectedTabID]?.message=nil;webView.goForward();focus() }
-    @objc private func reloadPage() { if currentURL == nil { focus() } else { states[selectedTabID]?.message=nil;webView.reload();focus() } }
+    @objc private func reloadOrStopPage() {
+        guard let view=states[selectedTabID]?.webView,view.isLoading else { reloadPage();return }
+        // Keep the intended address when stopping a provisional navigation:
+        // WebKit may restore its previous committed URL during cancellation.
+        states[selectedTabID]?.pendingURL=currentURL?.absoluteString
+        states[selectedTabID]?.message=nil;states[selectedTabID]?.blockedMessage=nil
+        view.stopLoading();updateControls();focus()
+    }
+    @objc private func reloadPage() {
+        guard let url=currentURL else { focus();return }
+        states[selectedTabID]?.message=nil
+        let view=webView
+        if view.url == url,view.backForwardList.currentItem?.url == url { view.reload() }
+        else { load(url) }
+        updateControls();focus()
+    }
     @objc private func retryPage() { if let url=currentURL { load(url) } }
     private func updateControls() {
         let view=states[selectedTabID]?.webView
         back.isEnabled=view?.canGoBack ?? false;forward.isEnabled=view?.canGoForward ?? false
-        if view?.isLoading == true { progress.startAnimation(nil) } else { progress.stopAnimation(nil) }
+        let loading=view?.isLoading == true
+        if loading { progress.startAnimation(nil) } else { progress.stopAnimation(nil) }
+        let reloadLabel=loading ? "Stop loading website" : "Reload website"
+        if reload.toolTip != reloadLabel {
+            reload.image=NSImage(systemSymbolName:loading ? "xmark" : "arrow.clockwise",accessibilityDescription:reloadLabel)
+            reload.toolTip=reloadLabel;reload.setAccessibilityLabel(reloadLabel)
+        }
+        reload.isEnabled=loading || currentURL != nil
         let message=states[selectedTabID]?.message;errorRow.isHidden=message == nil;errorText.stringValue=message ?? "";errorText.toolTip=message
         onStateChanged?()
     }
@@ -317,8 +339,36 @@ final class BrowserScreenPane: NSView, WKNavigationDelegate, WKUIDelegate {
     func webView(_ webView:WKWebView,didFail navigation:WKNavigation!,withError error:Error) { navigationFailed(error,view:webView) }
     func webView(_ webView:WKWebView,didFailProvisionalNavigation navigation:WKNavigation!,withError error:Error) { navigationFailed(error,view:webView) }
     private func navigationFailed(_ error:Error,view:WKWebView) {
-        guard (error as NSError).code != NSURLErrorCancelled,let id=stateID(for:view) else { return }
-        showError("Couldn’t load this website. Check the address or connection, then retry.",id:id);updateControls()
+        let failure=error as NSError
+        guard let id=stateID(for:view) else { return }
+        if failure.domain == NSURLErrorDomain,failure.code == NSURLErrorCancelled { updateControls();return }
+        showError(states[id]?.blockedMessage ?? Self.navigationErrorMessage(failure),id:id);updateControls()
+    }
+    /// Fixed category messages never interpolate error descriptions, URLs,
+    /// query strings, server replies or credential-bearing userInfo values.
+    private static func navigationErrorMessage(_ error:NSError) -> String {
+        guard error.domain == NSURLErrorDomain else { return "Couldn’t load this website. Check the address or connection, then retry." }
+        switch error.code {
+        case NSURLErrorCannotFindHost,NSURLErrorDNSLookupFailed:
+            return "Couldn’t find this website. Check the address or DNS settings."
+        case NSURLErrorNotConnectedToInternet:
+            return "This Mac is offline. Check your network connection, then retry."
+        case NSURLErrorNetworkConnectionLost:
+            return "The connection to this website was interrupted. Check your network, then retry."
+        case NSURLErrorTimedOut:
+            return "This website took too long to respond. Retry when the connection is available."
+        case NSURLErrorCannotConnectToHost:
+            return "Couldn’t connect to this website. Check the server or network, then retry."
+        case NSURLErrorSecureConnectionFailed,NSURLErrorServerCertificateHasBadDate,
+             NSURLErrorServerCertificateUntrusted,NSURLErrorServerCertificateHasUnknownRoot,
+             NSURLErrorServerCertificateNotYetValid,NSURLErrorClientCertificateRejected,
+             NSURLErrorClientCertificateRequired:
+            return "A secure connection couldn’t be verified. Check the website’s HTTPS certificate."
+        case NSURLErrorAppTransportSecurityRequiresSecureConnection:
+            return "macOS blocked this insecure connection. Use an HTTPS address."
+        default:
+            return "Couldn’t load this website. Check the address or connection, then retry."
+        }
     }
     func webViewWebContentProcessDidTerminate(_ webView:WKWebView) { if let id=stateID(for:webView) { showError("This website stopped responding. Retry to reload it.",id:id) } }
     func webView(_ webView:WKWebView,decidePolicyFor navigationAction:WKNavigationAction,decisionHandler:@escaping(WKNavigationActionPolicy)->Void) {

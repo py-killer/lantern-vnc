@@ -1,0 +1,30 @@
+{
+  "asyncCredentialControllerChecks": 135,
+  "asyncCredentialControllerStatus": "passed fresh final build15:135 checks, nine independently verified fixture authentications",
+  "browserStoreChecks": 205,
+  "connectionSettingsChecks": 143,
+  "credentialVaultClientChecks": 160,
+  "credentialVaultClientScope": "Injected fake v2 vault/legacy stores, scoped ownership and shared suppression/intent markers; no owner credentials",
+  "externalBrowserCombinedChecks": 322,
+  "externalBrowserManagerChecks": 86,
+  "externalBrowserOwnedPanelChecks": 236,
+  "externalBrowserScope": "Fake system launcher and invisible owned windows; no real Safari/Chrome launch or profile reads",
+  "helperCacheConcurrency": {
+    "builders": 2,
+    "result": "pass",
+    "scope": "Owned cache-creation orchestration check; not production credential access",
+    "signPhases": 1
+  },
+  "nativeUIChecks": 5335,
+  "ownedLoopbackAuthentications": 9,
+  "ownerGUIOrServerAuthentication": "not claimed for build15",
+  "routerSelectionPairs": 4000,
+  "scope": "Owned fixture results; no owner credential or owner-server authentication on build15",
+  "signedProductionBuild": "Static bundle/signature verification is recorded separately; this receipt covers owned runtime fixture suites.",
+  "workspaceChecks": 142,
+  "workspaceNativeUIStatus": "passed fresh final build15:142 workspace +4000 routing pairs, 5335 native UI",
+  "publicV2LoginKeychainChecks": 17,
+  "publicV2LoginKeychainStatus": "passed with actual frozen helper and synthetic default-login items; no unlock/hooks",
+  "connectionSettingsStatus": "passed fresh final build15:143 checks; three successful fixture authentications and one rejection",
+  "verifiedCandidateBuild": 15
+}

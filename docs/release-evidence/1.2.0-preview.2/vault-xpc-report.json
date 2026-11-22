@@ -1,0 +1,25 @@
+{
+  "checks": 13,
+  "result": "pass",
+  "globalInputEvents": 0,
+  "realCredentialReads": 0,
+  "helperRestartsVerified": true,
+  "successfulItemOperations": 14,
+  "trustOrSearchListChanges": false,
+  "scope": "Actual NSXPCConnection and owned private synthetic Keychain; no user credential access",
+  "helperBuild": "VAULT_HARNESS fixture service constrained to its explicit test Keychain; not the public frozen helper",
+  "positiveCases": [
+    "changed viewer builds share the exact signed fixture helper",
+    "app movement retains access",
+    "helper restart retains access",
+    "update and deletion operate on synthetic entries"
+  ],
+  "rejectionCases": [
+    "wrong publisher certificate",
+    "wrong client identifier",
+    "ad hoc client",
+    "substituted helper code hash"
+  ],
+  "publicHelperScope": "Historical v1 VAULT_HARNESS/private-Keychain runtime only; it did not establish default login-Keychain access. Current actual public-v2 proof is in vault-login-report.json.",
+  "historicalCandidateBuild": 14
+}

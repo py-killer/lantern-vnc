@@ -24,15 +24,19 @@ Live and connecting screens keep their saved order. Selecting a card does not re
 
 ## Can I open websites in Lantern?
 
-Yes. **Add screen → Browser window…** creates a browser-window card containing up to 12 tabs. Its name and starting HTTP(S) address are optional; a blank address starts a new tab. Tabs switch within that window without adding or selecting another sidebar card. Existing single-address cards migrate into one-tab windows, preserving their names and URLs.
+Choose **Add screen → Browser window…**. The default, **Lantern · inside this window**, uses an internal tabbed WebKit browser. **Safari · opens outside Lantern** and **Google Chrome · opens outside Lantern** use the actual installed apps outside Lantern, keeping their own profiles, website logins and enabled extensions. Only located Safari/Chrome choices appear. Installed-browser cards require an HTTP(S) address and keep their chosen browser type across restarts.
 
-Use **+ / Command–T** to add a tab and its close button or **Command–W** to close it. Closing the last page leaves a fresh new tab. Back, Forward, Reload and **Command–L / R / [ / ]** work in the selected tab. Popup links open tabs in the same browser window. Context-click its sidebar card to edit the window name/selected address or remove the window.
+The first explicit installed-browser card selection opens its saved address. Later selections switch to that running app without opening another copy of the address. **Open Website** deliberately opens it again. If the app has closed, selecting its card reopens it. Startup restoration does not automatically launch or focus an external browser. Removing a card does not close the browser. App activation cannot guarantee which window, tab or profile is frontmost; use the actual browser to choose a profile.
 
-While that browser window is selected, **Command–Shift–[ / ]** switches to the previous/next tab, and **Control–Tab / Control–Shift–Tab** to the next/previous tab. Those shortcuts stay local to the selected browser window.
+Internal Lantern cards keep up to 12 tabs, with **+ / Command–T**, close buttons/**Command–W**, and a fresh new tab after closing the last page. Popup links stay within that same internal window. Back/Forward and **Command–L / R / [ / ]** act on the selected tab; **Command–Shift–[ / ]** or **Control–Tab / Control–Shift–Tab** switches tabs. Reload becomes **Stop** while loading; Stop cancels only the selected tab's pending load and preserves its requested address for retry. Command–R always reloads.
 
-Up to 100 browser windows can be recorded independently of the three-computer limit, with at most six windows loaded. Tabs load lazily when selected. A least recently used inactive window sleeps when another needs its slot; selecting it restores saved tab URLs and selection and loads pages on demand. Unsaved forms or page state may be lost. Loaded background tabs can keep running scripts and network requests until they sleep, close, or are removed.
+Up to 100 browser cards can be recorded independently of the three-computer limit. At most six internal WebKit windows stay loaded; tabs load lazily and inactive least recently used windows sleep when needed. Restoring their saved URLs/selection can discard unsaved forms/page state. Loaded internal background tabs may keep running scripts/network requests. Existing single-address cards migrate into internal one-tab windows with their aliases and URLs preserved.
 
-Pages run locally on your Mac with native WebKit, separate from the remote VNC computer. Lantern has its own persistent cookies and website storage, separate from Safari and Chrome; it does not import their sessions. Sites may require their own login and collect data under their own privacy policies. This is not a full-browser compatibility promise: downloads are unsupported and reported inline, HTTP authentication/credential authorization dialogs are disabled, and some OAuth/popup, extension, or other full-browser features may fail. Use a full browser for those cases. No Lantern account is required.
+## Can I use my installed Chrome extensions and browser logins?
+
+Select **Google Chrome · opens outside Lantern** to use the real Chrome app and the profile/extensions it manages, or Safari for its own profile and extensions. Lantern's internal WebKit browser has a separate persistent website session and does not import either browser's extensions, passwords or cookies. It must not be treated as Chrome or Safari simply because it can open the same website.
+
+External-browser cards do not read profile files, inject plugins, take browser screenshots, or request browser-automation, Accessibility or screen-recording access. They open or activate the actual app. Sites in either browser can have their own sign-in and privacy policies. Internal WebKit downloads are unsupported and reported inline; its HTTP authentication/credential authorization dialogs are disabled. Some OAuth or extension-dependent tasks need the real browser. No Lantern account is required.
 
 ## Can I find a server without checking my router?
 
@@ -42,7 +46,7 @@ It does not search VPN interfaces, IPv6, Bonjour, public IPv4 networks, or every
 
 ## Why does 100% look small on my Retina screen?
 
-In 1.2.0-preview.1, a new endpoint starts in **Fit to Window**, which shows the whole desktop but can make text tiny on a 5K server. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use scroll bars or Hand to navigate.
+In 1.2.0-preview.2, a new endpoint starts in **Fit to Window**, which shows the whole desktop but can make text tiny on a 5K server. Choose **Auto (Readable)** to avoid shrinking below 100%, or 125–200% for larger text, then use scroll bars or Hand to navigate.
 
 At 100%, one remote pixel maps to one drawable/backing pixel, rather than one Mac point. The final appearance also depends on macOS display scaling. These controls change only the local view, not the remote resolution or the number of remote pixels requested. See [Display and navigation](Display-and-Navigation.md).
 
@@ -81,7 +85,7 @@ With Hand off, wheel/trackpad scrolling is sent to the remote computer. Turn on 
 
 ## Is the new navigation release fully verified?
 
-1.2.0-preview.1 is an early-access release with the new controls implemented. Physical 1× external/2× Retina transitions, monitor disconnect/reconnect, and the complete manual hardware matrix remain unverified. Read the [release checklist](../RELEASE_CHECKLIST.md) before treating it as a stable release.
+1.2.0-preview.2 is an early-access release with the new controls implemented. Physical 1× external/2× Retina transitions, monitor disconnect/reconnect, and the complete manual hardware matrix remain unverified. Read the [release checklist](../RELEASE_CHECKLIST.md) before treating it as a stable release.
 
 ## Does resizing Lantern change the remote resolution?
 
@@ -93,21 +97,23 @@ Not by this build. Use a trusted LAN or a VPN/SSH tunnel that you establish sepa
 
 ## Does Lantern send analytics or save my password?
 
-It has no account, analytics, licensing, or cloud-relay service. Device settings are stored locally. **Remember password** is off for a new host/port and attempts to save only after a successful connection, using the classic macOS login Keychain with synchronization disabled. Plaintext passwords are never saved in preferences or profiles, or automatically included in feedback exports. Review your own notes before sharing them. This does not promise exclusion from every backup. Unchecking the box or removing its profile requests deletion of the saved password. Profile removal still clears the device and its saved viewing preferences and frees the slot if a protected password cannot be deleted; an inline notice explains that the credential was retained. Keychain operations never open an authentication dialog or offer an approval action. Manual VNC password entry remains available.
+It has no account, analytics, licensing, or cloud-relay service. Device settings are stored locally. **Remember password** is off for a new host/port and attempts to save only after a successful connection, using the classic macOS login Keychain with synchronization disabled. Plaintext passwords are never saved in preferences or profiles, or automatically included in feedback exports. Review your own notes before sharing them. This does not promise exclusion from every backup. After disconnecting, unchecking the box or removing its profile requests deletion of the saved password. Profile removal still clears the device and its saved viewing preferences and frees the slot if a protected password cannot be deleted; an inline notice explains that the credential was retained. Keychain operations never open an authentication dialog or offer an approval action. Manual VNC password entry remains available.
 
-Optional clipboard sharing deliberately transfers text between your Mac and the selected server; leave it disabled if you do not want that transfer. **Find…** makes bounded connections on your chosen local network and port only when requested. Connected background computers make paced VNC requests for their RAM-only previews. Local browser screens make normal requests to the websites you open and use Lantern's own persistent WebKit cookies/storage; those sites can have their own analytics. This is separate from Lantern's optional project-website counts.
+Optional clipboard sharing deliberately transfers text between your Mac and the selected server; leave it disabled if you do not want that transfer. **Find…** makes bounded connections on your chosen local network and port only when requested. Connected background computers make paced VNC requests for their RAM-only previews. Internal WebKit cards make normal website requests and use Lantern's own persistent cookies/storage. Installed-browser cards open Safari/Chrome, which retain their own profiles, settings and website sessions. Sites and browsers may have their own analytics; this is separate from Lantern's optional project-website counts.
 
 ## Why is a remembered password unavailable?
 
-All Keychain operations are noninteractive. If access fails, Lantern reports it inline and leaves the VNC password field available; a failed save turns **Remember password** off. There is no approval button or authentication dialog, and inaccessible existing items are left unchanged. Ad hoc signed updates can lose access to an earlier build's items. Reliable remembering across updates is not yet verified, so this preview does not claim that issue is fixed. Storage protections remain in place, with no plaintext fallback or Keychain reset.
+Choose Remember before connecting; its checkbox is disabled while connecting/connected, so disconnect before changing it. All Keychain operations are noninteractive. If access fails, Lantern reports it inline and leaves the VNC password field available. An unconfirmed save turns **Remember password** off and disables automatic use; a protected copy may remain. Forget also disables automatic use when deletion cannot be confirmed. There is no approval button, authentication dialog, plaintext fallback or Keychain reset.
+
+Newly saved passwords use the fixed, signed **v2 helper** in the viewer’s existing macOS security session. Seventeen checks exercised that actual public helper with synthetic entries in the default login Keychain, without unlocking it or enabling authentication UI. Continuity depends on preserving the helper and publisher identity. Older items migrate only after an already-authorized noninteractive read. A protected synthetic v1 item was denied and left unchanged; no recovery of an owner’s older password is established. Build 14’s unreleased v1 candidate used a separate security session; its earlier private-Keychain lab did not prove default login-Keychain access.
 
 ## Does it support file transfer, audio, printing, or multiple sessions?
 
-The current app provides display, keyboard/pointer input, optional text clipboard sharing, and local browser screens. VNC sessions can remain connected in the background, with only the selected one controllable. It does not provide VNC file transfer, remote audio, printing, or recording. Browser downloads are also unsupported.
+The current app provides display, keyboard/pointer input, optional text clipboard sharing, and internal/installed-browser cards. VNC sessions can remain connected in the background, with only the selected one controllable. It does not provide VNC file transfer, remote audio, printing, or recording. Internal WebKit downloads are unsupported; actual Safari/Chrome windows use their own browser capabilities.
 
 ## Why does macOS warn when I open the app?
 
-The current preview is ad hoc signed. Apple Developer ID signing and notarization are pending. Approve only a copy from a source you trust; do not disable Gatekeeper system-wide. See [Getting started](Getting-Started.md).
+Published previews use the project's self-signed publisher certificate. Development builds use ad hoc signatures. Apple Developer ID signing and notarization remain pending. Approve only a copy from a source you trust; do not disable Gatekeeper system-wide. See [Getting started](Getting-Started.md).
 
 ## Where are the source and release notes?
 

@@ -1,6 +1,6 @@
 # Lantern VNC — free VNC client for Mac
 
-**Current preview: 1.2.0-preview.1 · build 13 · Apple Silicon · macOS 13+**
+**Release candidate: 1.2.0-preview.2 · build 15 · Apple Silicon · macOS 13+**
 
 A free native VNC client for Apple Silicon Macs, built with AppKit and Metal.
 Use it for an occasional remote task or regular direct access to your existing VNC server.
@@ -22,7 +22,8 @@ preview, not a fully checked stable release.
 [Community and feedback](COMMUNITY.md) ·
 [Wiki](docs/wiki/Home.md) · [Changelog](CHANGELOG.md) ·
 [Release checklist](docs/RELEASE_CHECKLIST.md) ·
-[1.2 Preview 1 test results](docs/TEST_RESULTS-1.2.0-preview.1.md) ·
+[Preview 2 test results](docs/TEST_RESULTS-1.2.0-preview.2.md) ·
+[Earlier 1.2 Preview 1 test results](docs/TEST_RESULTS-1.2.0-preview.1.md) ·
 [Earlier Preview 6 results](docs/TEST_RESULTS-1.1.0-preview.6.md) ·
 [Earlier Preview 5 results](docs/TEST_RESULTS-1.1.0-preview.5.md) ·
 [Earlier Preview 4 results](docs/TEST_RESULTS-1.1.0-preview.4.md)
@@ -36,8 +37,9 @@ run the supplied app.
 
 1. Extract `Lantern-VNC-macOS.zip` and move `Lantern VNC.app` to Applications
    or another folder you control.
-2. Open `Lantern VNC.app`. This development build is ad hoc signed and has
-   not been Apple-notarized. If macOS blocks it, use Finder's contextual
+2. Open `Lantern VNC.app`. The published preview uses the project's self-signed
+   publisher certificate. Apple Developer ID signing and notarization remain
+   pending. If macOS blocks it, use Finder's contextual
    **Open** command, or review the app in **System Settings → Privacy &
    Security → Open Anyway** if that option appears. Only approve a copy from
    a source you trust. Do not disable Gatekeeper system-wide.
@@ -164,7 +166,7 @@ settings are stored locally on your Mac. The finder saves a device when you
 confirm its alias. Choose **Rename…** to change a saved name or **Save…** for
 a manually entered device; a successful manual connection also saves it when
 a slot is available, using the server's desktop name. Passwords are stored separately
-in macOS Keychain only when you opt in and saving succeeds. Uncheck **Remember
+in macOS Keychain only when you opt in and saving succeeds. Disconnect first, then uncheck **Remember
 password** to request deletion for that host and port; **Remove** also requests
 deletion of the selected profile's saved password. Removing a device still clears
 its profile and saved viewing preferences and frees the slot if that password
@@ -173,49 +175,88 @@ retained. Saved computers can remain connected in the background, with one
 selected for control. A full saved list still permits
 a one-off connection.
 
+Choose **Remember password** before connecting. It is disabled while connecting
+or connected; disconnect before changing it or requesting Forget.
+
 All Keychain reads, saves, and deletions are noninteractive. Lantern never
 opens a Keychain authentication dialog or offers an approval action. Errors
-appear inline, and a failed save turns **Remember password** off. Inaccessible
-existing items remain unchanged. Manual VNC password entry stays available;
+appear inline. Unconfirmed saving turns **Remember password** off and disables
+automatic use; a protected copy may still remain. Forget disables automatic use
+even if deletion cannot be confirmed. Inaccessible existing items remain unchanged. Manual VNC password entry stays available;
 the app does not use plaintext fallback storage or reset Keychain security.
 
-**Current preview limitation:** ad hoc signed updates can lose access to items
-saved by an earlier build. Reliable remembering across app updates has not
-been verified, and this preview does not claim that issue is fixed.
+Newly saved passwords use the fixed, signed **v2 credential helper**, which joins
+the viewer's existing macOS security session. Seventeen checks exercised the
+actual public v2 helper against UUID-named synthetic entries in the default login
+Keychain, without unlocking it or enabling authentication UI. These checks cover
+new entries and do not use or establish access to an owner's saved password.
+Continuity depends on preserving the signed helper and publisher identity.
 
-## Add tabbed browser windows
+Build 14 was an unreleased internal candidate: its v1 helper started in a separate
+security session, so the earlier private-Keychain lab did not establish normal
+login-Keychain access. Build 15 uses a separate v2 service and storage namespace;
+the old helper and protected v1 items are preserved.
 
-Choose **Add screen → Browser window…** to create a browser-window card, with an
-optional starting HTTP(S) address and name. An unnamed window gets a name such
-as **Browser 1**. Each card contains its own tab strip: use **+** or
-**Command–T** to add a tab, the tab's close button or **Command–W** to close it,
-and select tabs without changing sidebar cards. Closing the last page leaves
-a fresh new tab. Popup links open tabs inside that same browser window.
+**Legacy limitation:** an older Keychain item migrates only if macOS already
+allows its noninteractive read. Inaccessible older items remain protected; the
+helper does not recover them or bypass their access controls. Manual VNC entry
+can create a newly remembered vault entry after a successful connection. The
+synthetic proof does not establish migration of every earlier saved password.
 
-Pages open inside Lantern using native WebKit; this is local browsing on your
-Mac, not a page opened on the remote VNC computer. Website sessions persist in
-Lantern's own WebKit data store, separate from Safari and Chrome. A website may
-still require its own sign-in; no Lantern account is required.
+## Choose a browser for a card
 
-Use Back, Forward, Reload, or **Command–L / R / [ / ]** in the selected tab.
-Use **Command–Shift–[ / ]** or **Control–Tab / Control–Shift–Tab** to switch
-tabs. These browser shortcuts apply only while that browser window is selected.
-Context-click a browser card to edit its window name/selected address or remove
-the window. Each window can keep up to 12 tabs; up to 100 browser-window cards
-can be recorded. Tab URLs, titles, and the selected tab are restored; existing
-single-address cards migrate into one-tab windows without changing their alias.
-At most six browser windows stay loaded. The least recently used inactive
-window sleeps when that limit is reached and reloads its saved tabs on demand
-when selected again, so unsaved forms and page state may be lost. Tabs load
-lazily when first selected. Background card previews refresh about every ten
-seconds; the selected page runs normally without repeated thumbnail work.
-Browser selection keeps existing VNC sessions connected without sending
-them keyboard or pointer input.
+Choose **Add screen → Browser window…**. **Lantern · inside this window** is selected by default; choose another browser explicitly if needed:
 
-This is a focused embedded browser: downloads are unsupported and reported
-inline, HTTP authentication/credential authorization dialogs are disabled, and
-popup/OAuth flows do not have full browser parity. Use a full browser for sites
-that need those capabilities. See the [FAQ](docs/wiki/FAQ.md#can-i-open-websites-in-lantern).
+| Choice | Where it opens | Session and extensions |
+| --- | --- | --- |
+| **Lantern · inside this window** | A tabbed WebKit window inside Lantern | Lantern's own website storage, separate from Safari/Chrome. Installed browser extensions are not imported. |
+| **Safari · opens outside Lantern** | Your actual Safari app, outside Lantern | Safari manages its existing profile, logins and enabled extensions. |
+| **Google Chrome · opens outside Lantern** | Your actual Chrome app, outside Lantern | Chrome manages its existing profile, logins and enabled extensions, including your Chrome extensions. |
+
+Only located Safari/Chrome installations are offered. A real-browser card needs
+an HTTP(S) starting address. The first explicit selection opens that address;
+subsequent selections switch to the running browser app without opening another
+copy of the address. **Open Website** deliberately opens the saved address again.
+If the browser has closed, selecting its card reopens it. Restoring Lantern's
+cards at startup does not automatically launch or focus an external browser.
+
+The external panel shows the browser name/icon, address and status, with
+**Open / Switch**, **Open Website**, and **Change URL…**. Switching activates
+the app; it cannot guarantee a particular window, tab or profile. Choose the
+profile in Safari/Chrome itself. Removing a card does not close the browser.
+Existing cards keep their browser type; add a different card to change type.
+These cards do not take browser screenshots, read profile files, or request
+screen-recording, Accessibility or browser-automation permissions.
+
+For **Lantern · inside this window**, the starting address and name are optional;
+a blank address starts a new tab, and an unnamed window gets a name such as
+**Browser 1**. Each internal window has its own tab strip: **+ / Command–T** adds
+a tab, its close button or **Command–W** closes it, and the last close leaves a
+fresh new tab. Popup links stay in that same internal window. Existing
+single-address cards migrate to one-tab Lantern windows with their aliases
+preserved.
+
+Back, Forward and **Command–L / R / [ / ]** act on the selected internal tab.
+The toolbar's Reload control becomes **Stop** while that tab is loading; Stop
+cancels its pending load and preserves the requested address for another try.
+Afterward it returns to Reload. **Command–R** always reloads. Use
+**Command–Shift–[ / ]** or **Control–Tab / Control–Shift–Tab** to switch tabs.
+These shortcuts apply to the selected internal browser, not a VNC computer.
+
+Internal windows keep up to 12 tabs each. Up to 100 browser cards can be recorded;
+at most six internal WebKit windows stay loaded. Their inactive least recently
+used windows sleep and restore saved tab URLs/selection on demand, so unsaved
+forms and page state may be lost. Tabs load lazily. Internal background previews
+refresh about every ten seconds; repeated sampling pauses for the selected
+screen while its main view runs normally. External-browser cards use an icon
+and app status instead of a captured desktop preview.
+
+The internal WebKit browser does not promise full-browser compatibility:
+downloads are unsupported and reported inline, HTTP authentication/credential
+authorization dialogs are disabled, and some OAuth or extension-dependent
+workflows need real Safari/Chrome. Sites may also present their own verification
+pages. See the [browser FAQ](docs/wiki/FAQ.md#can-i-open-websites-in-lantern) and
+[verification troubleshooting](docs/wiki/Troubleshooting.md#a-website-shows-verification-or-keeps-loading).
 
 ## Optional support and feedback
 
@@ -265,9 +306,10 @@ leave it disabled if you do not want that transfer.
 
 Saved computers with an accessible remembered password can reconnect for
 background previews when the app opens. Those connections are read-only until
-selected. Computer and browser thumbnails stay in RAM only. Browser addresses
-and names are saved locally; cookies and website storage use Lantern's own
-persistent WebKit store. Pages make normal requests to the sites you open,
+selected. Computer and internal-browser thumbnails stay in RAM only. Browser addresses,
+names and selected browser types are saved locally. The internal browser uses
+Lantern's own persistent WebKit cookies/storage; external Safari/Chrome cards
+leave sessions and extensions in those actual apps and do not read their profiles. Pages make normal requests to the sites you open,
 which have their own privacy policies and may collect data. Lantern does not
 import Safari/Chrome data or turn browser activity into app analytics.
 
@@ -364,6 +406,9 @@ TEST_SANITIZE=1 ./tests/run-tests.sh
 ./tests/run-workspace-tests.sh
 ./tests/run-browser-tests.sh
 ./tests/run-browser-store-tests.sh
+./tests/run-external-browser-tests.sh
+EXTERNAL_BROWSER_PANEL_TESTS=1 ./tests/run-external-browser-tests.sh
+./tests/run-external-workspace-tests.sh
 ./tests/run-screen-preview-tests.sh
 SCREEN_PREVIEW_SANITIZE=1 ./tests/run-screen-preview-tests.sh
 ./tests/run-screen-cards-tests.sh
@@ -408,11 +453,17 @@ requires Python 3 for source staging):
 ```
 
 The package script writes to `../outputs` by default; an absolute output
-directory can be passed as its first argument. It verifies the ad hoc code
-signature and bundles the license notices. Ad hoc signing permits local
-integrity checks and is not Apple Developer ID signing or notarization.
-Apple Developer ID signing and Apple notarization are pending. This package
-uses ad hoc signing, and macOS may require you to approve opening it.
+directory can be passed as its first argument. It verifies signatures and
+bundles the license notices. Published previews use the project's self-signed
+publisher certificate and preserve the credential helper byte for byte when
+resealing the main app. Apple Developer ID signing and notarization remain
+pending; macOS may require approval to open a trusted copy.
+
+Ordinary development builds use ad hoc signatures without the publisher's
+private signing material. Their persistent credential helper is unavailable;
+manual VNC connections still work. To create an independent helper with your
+own identity, read the [credential-service build guide](native/credential-vault/README.md).
+Private signing keys and password files are never included in the source archive.
 
 ## Community
 

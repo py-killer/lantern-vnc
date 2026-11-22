@@ -1,0 +1,21 @@
+{
+  "checks": 17,
+  "result": "pass",
+  "scope": "PUBLICv2 helper, default login Keychain, new UUID synthetic endpoints only",
+  "helperCDHash": "83b274f4e454295bc26abfc890a152f95688c4a8",
+  "legacyReadOutcome": "protected",
+  "ownerEndpointQueries": 0,
+  "ownerPreferencesWrites": 0,
+  "unlockCalls": 0,
+  "fixtureAppsRemoved": true,
+  "syntheticItemsCleaned": true,
+  "legacySyntheticItemsCleaned": true,
+  "candidateBuild": 15,
+  "helperGeneration": 2,
+  "helperVariant": "Actual frozen PUBLIC v2; no VAULT_HARNESS hooks",
+  "authenticationUI": "forbidden",
+  "sameSecuritySession": true,
+  "legacySyntheticItemUnchanged": true,
+  "legacyMigration": "No guaranteed old-item recovery; protected fake v1 read denied safely",
+  "ownerCredentialAccess": "none"
+}

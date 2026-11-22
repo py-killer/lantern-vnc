@@ -240,7 +240,10 @@ struct ConnectionSettingsHarness {
         password.stringValue = "mock-password"; toggle(remember, to: .on); store.failSave = true
         controller.toggleConnection(); connected()
         expect(remember.state == .off && store.saves.count == 1, "save failure clears remember without dropping successful connection")
-        expect(window.attachedSheet == nil && passwordHint.stringValue.contains("password was not saved"), "save failure stays inline and never requests authentication")
+        expect(window.attachedSheet == nil && passwordHint.stringValue.lowercased().contains("password saving could not be confirmed") &&
+               passwordHint.stringValue.contains("vaultWrite") && passwordHint.stringValue.contains("OSStatus \(errSecAuthFailed)") &&
+               passwordHint.stringValue.components(separatedBy:"Password saving could not be confirmed").count == 2,
+               "save failure stays inline with one sanitized stage/status explanation and never requests authentication")
         store.failSave = false; disconnect()
         expect(try store.value(host: "127.0.0.1", port: passwordPort) == nil, "failed storage operation does not invent a saved value")
 

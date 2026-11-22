@@ -30,7 +30,7 @@ cp "$PROJECT_DIR/README.md" "$APP_DIR/Contents/Resources/README.md"
 cp "$PROJECT_DIR/THIRD_PARTY_NOTICES.md" "$APP_DIR/Contents/Resources/THIRD_PARTY_NOTICES.md"
 cp "$PROJECT_DIR/LICENSE" "$APP_DIR/Contents/Resources/Licenses/Lantern-VNC-GPL-2.0.txt"
 ditto --norsrc --noextattr "$PROJECT_DIR/licenses" "$APP_DIR/Contents/Resources/Licenses"
-codesign --force --sign - --identifier local.lantern.vnc "$APP_DIR"
+python3 "$PROJECT_DIR/scripts/finalize-app-signature.py" "$APP_DIR"
 codesign --verify --deep --strict "$APP_DIR"
 if [[ "$(lipo -archs "$APP_DIR/Contents/MacOS/LanternVNC")" != arm64 ]]; then
   echo 'Unexpected app architecture; this package must be arm64.' >&2

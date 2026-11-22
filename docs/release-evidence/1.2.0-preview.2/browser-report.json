@@ -1,0 +1,14 @@
+{
+  "checks": 262,
+  "globalInputEvents": 0,
+  "foregroundJavaScriptDialogs": "alert acknowledgement, confirm accept/cancel, prompt accept/cancel; owned invisible sheets and synthetic text",
+  "foregroundPolicySimulation": "test-window isKeyWindow override only; no app activation or global input",
+  "hiddenAttachedSnapshot": "updated pixels verified while another pane active",
+  "HTTPAuthentication": "canceled without credential UI",
+  "navigationControl": "Reload/Stop selected-tab isolation; canceled provisional destination retry; sanitized DNS/offline/timeout/TLS/ATS messages",
+  "popups": "target-blank and window.open stay in browser window; child opener/postMessage verified; inactive source preserves selection/focus",
+  "snapshotPixelBound": "256x160",
+  "tabs": "independent WebKit/history, lazy restoration, selected persistence callback, keyboard/new/close,12-tab bound, last-tab blank",
+  "viewportPreserved": true,
+  "webKitFixtureScope": "owned127.0.0.1 HTTP pages; ephemeral shared cookies"
+}

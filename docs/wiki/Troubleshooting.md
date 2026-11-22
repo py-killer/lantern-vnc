@@ -50,7 +50,7 @@ Try **Fit to Window**, then compare the remote pointer with a clearly marked tes
 
 ## The image is stale, slow, or soft
 
-Card previews are sampled, not live video. Background VNC sessions are read-only with requests paced roughly every two seconds. Select a computer to resume foreground updates on its existing connection. A disconnected card can retain a labeled last capture; its image does not prove that the server is reachable. Thumbnails stay in RAM and are not saved screenshots.
+Card previews are sampled, not live video. Background VNC sessions are read-only with requests paced roughly every ten seconds. The selected screen stops repeated thumbnail sampling after an initial image; its main desktop/browser still runs normally. Select a computer to resume foreground updates on its existing connection. A disconnected card can retain a labeled last capture; its image does not prove that the server is reachable. Thumbnails stay in RAM and are not saved screenshots. Selecting a live card does not move it. Offline, sleeping or closing cards move to the bottom and regain their original live-card position when available again.
 
 Preview 5 reduces local copying for small changes and can send queued input while a partial screen update is waiting for more data. It preserves pixel quality and the existing compression presets. It does not change VNC network compression or remove server/network delays; large full-screen changes still require full-image work.
 
@@ -80,9 +80,11 @@ Enable **Share clipboard text** only if you intend to transfer text. Clipboard s
 
 ## A browser page is sleeping, cannot load, or loses its form
 
-Only six browser pages stay loaded. A least recently used page sleeps when another needs its slot; selecting that card reloads its saved URL, so unsaved forms or page state may be lost. Up to 100 browser cards can still remain recorded. Removing a browser card stops its page; switching away alone leaves a loaded page running, with sampled previews.
+Each browser card is a window containing up to 12 tabs; change pages using its tab strip rather than another sidebar card. Closing the last tab leaves a fresh new tab. Popup links stay in that browser window as new tabs. Existing one-address cards migrate into one-tab windows with their aliases and URLs preserved.
 
-Check the HTTP(S) address and use the inline **Retry** action after a network failure. Use the address field or context-click **Edit…** to correct a saved address. Back/Forward/Reload and Command–L/R/[/] affect the selected local browser screen, not the VNC computer.
+Only six browser windows stay loaded. A least recently used inactive window sleeps when another needs its slot; selecting that card restores its saved tabs/selection and loads pages on demand, so unsaved forms or page state may be lost. Up to 100 window cards can remain recorded. Removing a window stops all its loaded tabs; switching away alone leaves loaded tabs running with about ten-second background previews.
+
+Check the selected tab's HTTP(S) address and use the inline **Retry** action after a network failure. Use the address field or context-click **Edit…** on the card to correct its selected address or window name. Back/Forward/Reload and Command–L/R/[/] affect the selected local browser tab, not the VNC computer. Command–T adds a tab; Command–W closes that tab rather than the browser-window card.
 
 Browser downloads are unsupported and reported inline. HTTP authentication and credential authorization dialogs are disabled. Some OAuth/popup flows depend on full-browser behavior that Lantern does not implement; use a full browser for those sites. Safari or Chrome sessions are not imported, so a website may require a separate login in Lantern. Site content, scripts, and cookies are governed by that site's behavior and privacy policy.
 

@@ -74,6 +74,14 @@ static void check_schedule(void) {
     assert(process_commands(client, rfb));
     assert(send_scheduled_update(client, rfb) && incremental_sends == 2);
     assert(should_request_update(rfb) && !client->update_pending);
+    /* Product preview cadence, tested without a ten-second wall-clock wait. */
+    assert(vncv_set_update_interval(client, 10000));
+    assert(process_commands(client, rfb) && !should_request_update(rfb));
+    assert(client->update_due == 112);
+    fake_now = 111.999;
+    assert(send_scheduled_update(client, rfb) && incremental_sends == 2);
+    fake_now = 112;
+    assert(send_scheduled_update(client, rfb) && incremental_sends == 3);
     assert(vncv_set_update_interval(client, UINT32_MAX));
     assert(process_commands(client, rfb) && !should_request_update(rfb));
     assert(client->update_due > fake_now + 4294967 && client->update_due < fake_now + 4294968);

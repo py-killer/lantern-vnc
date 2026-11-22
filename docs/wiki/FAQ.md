@@ -14,19 +14,25 @@ The supplied arm64 app requires an Apple Silicon Mac and macOS 13 or later. It c
 
 Up to three named VNC computer profiles. Profiles contain a name, host, and port. In Find, confirm an alias with **Save Computer** to save the profile immediately; this does not connect or save a password. A new profile saved after connecting can use the server's desktop name. Context-click its card for **Rename…**. Passwords are kept separately in macOS Keychain only if you opt in. You can still enter a one-off connection when all saved slots are occupied.
 
-Connected computers can stay connected while another card is selected. Background sessions become read-only, with requests paced roughly every two seconds. Only the selected computer receives keyboard, pointer, and optional clipboard input. Returning to a connected card uses the same session; use its **Disconnect** action when you want to stop it. Saved computers with an accessible remembered password can reconnect for previews on launch.
+Connected computers can stay connected while another card is selected. Background sessions become read-only, with requests paced roughly every ten seconds. Only the selected computer receives keyboard, pointer, and optional clipboard input. Returning to a connected card uses the same session; use its **Disconnect** action when you want to stop it. Saved computers with an accessible remembered password can reconnect for previews on launch.
 
 ## Are card previews saved or live video?
 
-They are small sampled images kept in RAM, not recordings or saved screenshots. VNC previews are normally sampled no more often than every two seconds and preserve the remote image's aspect ratio. Background requests are paced about every two seconds; network/server delays can make samples older. A disconnected card may retain its labeled last capture. Sample age is not RTT, input delay, or a connectivity check.
+They are small sampled images kept in RAM, not recordings or saved screenshots. Background VNC requests and computer/browser previews are paced about every ten seconds and preserve aspect ratio; network/server delays can make samples older. After an initial thumbnail, repeated sampling pauses for the selected screen while its main desktop or page runs at normal foreground speed. A disconnected card may retain its labeled last capture. Sample age is not RTT, input delay, or a connectivity check.
+
+Live and connecting screens keep their saved order. Selecting a card does not reorder it. Offline, sleeping or closing screens move to the bottom; when they become live again, their original position among live cards is restored.
 
 ## Can I open websites in Lantern?
 
-Yes. **Add screen → Website…** accepts HTTP(S) addresses and opens native WebKit inside the main window. This browses locally on your Mac, separate from the remote VNC computer. Lantern has its own persistent cookies and website storage, separate from Safari and Chrome; it does not import their sessions. A website may require its own login and collect data under its own privacy policy.
+Yes. **Add screen → Browser window…** creates a browser-window card containing up to 12 tabs. Its name and starting HTTP(S) address are optional; a blank address starts a new tab. Tabs switch within that window without adding or selecting another sidebar card. Existing single-address cards migrate into one-tab windows, preserving their names and URLs.
 
-Back, Forward, Reload and **Command–L / R / [ / ]** work in the selected browser screen. Context-click its card to edit or remove it. Up to 100 browser addresses can be recorded independently of the three-computer limit. At most six browser pages stay loaded. When another page needs that slot, the least recently used inactive page sleeps; selecting it reloads its saved URL. Unsaved forms or page state may be lost. Loaded background pages can keep running scripts and network requests until they sleep or are removed.
+Use **+ / Command–T** to add a tab and its close button or **Command–W** to close it. Closing the last page leaves a fresh new tab. Back, Forward, Reload and **Command–L / R / [ / ]** work in the selected tab. Popup links open tabs in the same browser window. Context-click its sidebar card to edit the window name/selected address or remove the window.
 
-This is not a full-browser compatibility promise. Downloads are unsupported and reported inline. HTTP authentication and credential authorization dialogs are disabled. Popup links can open another card, but flows depending on browser opener state, OAuth popups, extensions, or other full-browser features may fail. Use a full browser for those cases. Website forms are ordinary page content; no Lantern account is required.
+While that browser window is selected, **Command–Shift–[ / ]** switches to the previous/next tab, and **Control–Tab / Control–Shift–Tab** to the next/previous tab. Those shortcuts stay local to the selected browser window.
+
+Up to 100 browser windows can be recorded independently of the three-computer limit, with at most six windows loaded. Tabs load lazily when selected. A least recently used inactive window sleeps when another needs its slot; selecting it restores saved tab URLs and selection and loads pages on demand. Unsaved forms or page state may be lost. Loaded background tabs can keep running scripts and network requests until they sleep, close, or are removed.
+
+Pages run locally on your Mac with native WebKit, separate from the remote VNC computer. Lantern has its own persistent cookies and website storage, separate from Safari and Chrome; it does not import their sessions. Sites may require their own login and collect data under their own privacy policies. This is not a full-browser compatibility promise: downloads are unsupported and reported inline, HTTP authentication/credential authorization dialogs are disabled, and some OAuth/popup, extension, or other full-browser features may fail. Use a full browser for those cases. No Lantern account is required.
 
 ## Can I find a server without checking my router?
 

@@ -33,7 +33,9 @@ Discovery does not search VPN interfaces, IPv6, Bonjour, other ports, or public 
 
 The finder saves a named device when you confirm its alias. Context-click its card for **Rename…**, or use **Save…** for a manually entered connection. A successful connection also saves a device when a slot is available, using the alias from the picker or the server's desktop name for a new profile. Lantern can save up to three computers. Select a card to restore its connection settings and control that computer; **Remove** frees its saved slot.
 
-Connected computers keep RAM-only thumbnails, sampled about every two seconds. When another computer or a browser is selected, the previous VNC session stays connected in read-only mode with updates paced about every two seconds. Returning to that card resumes the same session. Only the selected computer receives remote input and optional clipboard sharing. **Disconnect** on a card stops that connection; switching cards alone does not disconnect it.
+Connected computers keep RAM-only thumbnails. When another computer or a browser window is selected, the previous VNC session stays connected in read-only mode with updates and previews paced about every ten seconds. Returning to that card resumes the same session at normal foreground speed. After an initial thumbnail, repeated sampling pauses for the selected screen. Only the selected computer receives remote input and optional clipboard sharing. **Disconnect** on a card stops that connection; switching cards alone does not disconnect it.
+
+Live and connecting cards keep their saved order; selecting a card leaves it in place. Offline, sleeping or closing screens move to the bottom. When a screen becomes live again, it returns to its original position among live cards.
 
 When the app opens, saved computers with a readable remembered password can reconnect for previews. If a password is unavailable, select the computer and connect manually. Preview ages describe the last sampled image, not a guarantee that the server is still reachable.
 
@@ -51,9 +53,15 @@ Lantern remembers zoom mode—including a custom pinch scale—and picture prese
 
 ## Add a local website
 
-Choose **Add screen → Website…**, enter an HTTP or HTTPS address and an optional name, then choose **Add Website**. This opens a local WebKit page inside Lantern, not a website on the remote computer. Lantern's persistent website session is separate from Safari and Chrome; a site may require its own login.
+Choose **Add screen → Browser window…**, enter an optional starting HTTP(S) address and name, then choose **Add Browser**. Leaving the address empty starts with a new tab; leaving the name empty gives the window a name such as **Browser 1**. This browses locally with WebKit inside Lantern, not on the remote computer. Lantern's persistent website session is separate from Safari and Chrome; a site may require its own login.
 
-Use Back, Forward, Reload, or **Command–L / R / [ / ]** while that browser screen is selected. Context-click its card to edit the address/name or remove it. Loaded pages receive sampled card previews. Up to 100 browser cards can be saved; only six pages stay loaded. Least recently used pages sleep when needed and reload on selection, which can discard unsaved page state.
+Each card is one browser window with its own tab strip. Use **+** or **Command–T** for another tab, click a tab to switch pages without changing the sidebar selection, and close a tab with its close button or **Command–W**. Closing the last page leaves a fresh new tab. Popup links open another tab within the same window.
+
+Back, Forward, Reload and **Command–L / R / [ / ]** act on the selected tab. Context-click its sidebar card to edit the window name/selected address or remove the window. Tab URLs, titles and selection are saved; existing single-address cards migrate to one-tab windows with their aliases preserved.
+
+Within the selected browser window, **Command–Shift–[ / ]** switches to the previous/next tab; **Control–Tab / Control–Shift–Tab** goes to the next/previous tab. These browser shortcuts do not target background windows or VNC computers.
+
+Each browser window can record up to 12 tabs; up to 100 window cards can be saved. At most six windows stay loaded. Tabs load lazily, and the least recently used inactive window sleeps when needed. Selecting a sleeping window reloads its saved tabs on demand, which can discard unsaved forms and page state. Background previews refresh about every ten seconds; the selected browser runs normally without repeated thumbnail work.
 
 Downloads are unsupported and show an inline message. HTTP authentication and credential authorization dialogs are disabled; some popup/OAuth flows need a full browser. Pages make normal network requests and can keep cookies/storage in Lantern's WebKit store. See the [browser FAQ](FAQ.md#can-i-open-websites-in-lantern).
 

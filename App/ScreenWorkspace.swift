@@ -19,11 +19,13 @@ final class ScreenFrameRouter {
         reset()
     }
 
+    @discardableResult
     func receive(token: UUID, bytes: UnsafePointer<UInt8>, width: Int, height: Int,
-                 stride: Int, dirty: FrameRegion) {
+                 stride: Int, dirty: FrameRegion) -> Bool {
         lock.lock(); defer { lock.unlock() }
-        guard selected == token else { return }
+        guard selected == token else { return false }
         receiveFrame(bytes, width, height, stride, dirty)
+        return true
     }
 }
 
@@ -40,7 +42,7 @@ final class WorkspaceComputer {
     let port: UInt16
     let token = UUID()
     let session = VNCSession()
-    let sampler = ScreenPreviewSampler()
+    let sampler: ScreenPreviewSampler
     var phase: Phase = .connecting
     var name: String
     var size = NSSize.zero
@@ -48,8 +50,9 @@ final class WorkspaceComputer {
     var sampledAt: TimeInterval?
     var credentialNote: String?
 
-    init(host: String, port: UInt16, name: String) {
+    init(host: String, port: UInt16, name: String, previewInterval: TimeInterval = 10) {
         self.host = host; self.port = port; self.name = name
+        sampler=ScreenPreviewSampler(minimumInterval:previewInterval)
         key = Self.key(host: host, port: port)
     }
 

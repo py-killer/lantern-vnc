@@ -63,6 +63,19 @@ struct ScreenCardsHarness {
         expect((card.accessibilityValue() as? String)?.contains("Selected.")==true,"selection is exposed to accessibility")
         expect((card.accessibilityValue() as? String)?.contains("updated recently")==true,"status/age is accessible")
         expect(card.accessibilityLabel()?.contains("Renamed")==true,"renamed accessibility label updates")
+        // The invisible layered view may already have pending display work.
+        // Observe NEW invalidation/mutation requests instead of assuming that
+        // assigning needsDisplay=false flushes AppKit's dirty-region state.
+        var invalidations=0,imageChanges=0
+        let displayObservation=card.observe(\.needsDisplay,options:[.new]) { _,_ in invalidations += 1 }
+        let imageObservation=preview.observe(\.image,options:[.new]) { _,_ in imageChanges += 1 }
+        card.update(title:"Renamed",status:"Connected · preview updated recently",image:image,selected:true)
+        expect(invalidations == 0 && imageChanges == 0,"unchanged selected card requests no new invalidation or image mutation")
+        let replacementImage=NSImage(cgImage:sampled.cgImage,size:NSSize(width:60,height:120))
+        card.update(title:"Renamed",status:"Connected · preview updated recently",image:replacementImage,selected:true)
+        expect(invalidations > 0 && imageChanges > 0 && preview.image === replacementImage,"a new thumbnail updates the image and requests display work")
+        displayObservation.invalidate();imageObservation.invalidate()
+        card.update(title:"Renamed",status:"Connected · preview updated recently",image:image,selected:true)
         if CommandLine.arguments.count>1 {
             card.update(title:"Office computer",status:"Connected · updated 2s ago",image:image,selected:true)
             card.updateLayer();card.displayIfNeeded()
@@ -78,7 +91,7 @@ struct ScreenCardsHarness {
         card.mouseDown(with:click);expect(selected==3,"disabled card rejects mouse action")
         expect(card.menu(for:click)?.items.allSatisfy{!$0.isEnabled}==true,"disabled context actions cannot run")
         let browser=ScreenCardView(identifier:"browser-test",title:"Saved documentation",kind:.browser)
-        expect(browser.accessibilityLabel()?.contains("web page")==true,"browser kind has appropriate accessible name")
+        expect(browser.accessibilityLabel()?.contains("browser window")==true,"browser card is identified as a browser window")
         expect(browser.menu(for:click)==nil,"unconfigured card has no context actions")
         browser.onEdit={}
         expect(browser.menu(for:click)?.items.first?.title=="Edit…","browser context action edits its saved page")

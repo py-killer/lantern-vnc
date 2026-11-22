@@ -25,8 +25,10 @@ struct ScreenPreviewTests {
     }
     static func main() {
         let sampler=ScreenPreviewSampler(maxWidth:2,maxHeight:2)
+        expect(!sampler.hasSample,"new sampler has no owned preview")
         var bytes=source(width:4,height:2,stride:20)
         guard let preview=sample(sampler,bytes,width:4,height:2,stride:20) else { fatalError("initial preview missing") }
+        expect(sampler.hasSample,"a valid sample records preview availability")
         expect(preview.width==2 && preview.height==1,"4:2 image preserves aspect at 2:1")
         let expected=Data([UInt8(18),20,36,2,40,26,98,4]) // Centers (1,1) and (3,1), B,G,R,X.
         expect(preview.data==expected,"center sampling preserves pixel order and skips source-row padding")
@@ -45,16 +47,22 @@ struct ScreenPreviewTests {
         }
         expect(rgba == [36,20,18,255,98,26,40,255],"CGImage displays BGRX as opaque RGB")
 
-        expect(sample(sampler,bytes,width:4,height:2,stride:20,now:11.999)==nil,"no sample sooner than two seconds")
-        expect(sample(sampler,bytes,width:4,height:2,stride:20,now:12) != nil,"sample exactly at interval")
-        expect(sample(sampler,bytes,width:4,height:2,stride:20,force:true,now:12.01) != nil,"forced connection preview bypasses throttle")
-        expect(sample(sampler,bytes,width:4,height:2,stride:20,now:12.02)==nil,"forced preview starts new throttle interval")
+        expect(sample(sampler,bytes,width:4,height:2,stride:20,now:12)==nil,"default sampling does not repeat at the former two-second cadence")
+        expect(sample(sampler,bytes,width:4,height:2,stride:20,now:19.999)==nil,"default sampling waits the full ten seconds")
+        expect(sample(sampler,bytes,width:4,height:2,stride:20,now:20) != nil,"sample exactly at ten-second default interval")
+        expect(sample(sampler,bytes,width:4,height:2,stride:20,force:true,now:20.01) != nil,"forced connection preview bypasses throttle")
+        expect(sample(sampler,bytes,width:4,height:2,stride:20,now:20.02)==nil,"forced preview starts new throttle interval")
         sampler.reset()
+        expect(!sampler.hasSample,"reset removes preview availability")
         expect(sample(sampler,bytes,width:4,height:2,stride:20,now:1) != nil,"reset permits a new connection immediately")
         expect(sample(sampler,bytes,width:4,height:2,stride:20,now:0.5)==nil,"backward clock cannot bypass throttle")
         let tooFast=ScreenPreviewSampler(minimumInterval:0)
         expect(sample(tooFast,bytes,width:4,height:2,stride:20,now:0) != nil,"zero-time first sample allowed")
         expect(sample(tooFast,bytes,width:4,height:2,stride:20,now:1)==nil,"configuration cannot sample more often than two seconds")
+        let fastFixture=ScreenPreviewSampler(minimumInterval:2)
+        expect(sample(fastFixture,bytes,width:4,height:2,stride:20,now:0) != nil,"explicit faster fixture starts immediately")
+        expect(sample(fastFixture,bytes,width:4,height:2,stride:20,now:1.999)==nil,"explicit faster fixture still enforces its interval")
+        expect(sample(fastFixture,bytes,width:4,height:2,stride:20,now:2) != nil,"explicit two-second fixture remains supported")
         let slower=ScreenPreviewSampler(minimumInterval:4)
         expect(sample(slower,bytes,width:4,height:2,stride:20,now:0) != nil,"custom slower interval starts")
         expect(sample(slower,bytes,width:4,height:2,stride:20,now:2)==nil,"custom slower interval enforced")
@@ -67,6 +75,7 @@ struct ScreenPreviewTests {
         for time in [Double.nan,Double.infinity,-1] {
             expect(sample(validation,bytes,width:4,height:2,stride:20,now:time)==nil,"reject invalid clock")
         }
+        expect(!validation.hasSample,"invalid frames and clocks do not report a sample")
         expect(sample(validation,bytes,width:4,height:2,stride:20) != nil,"rejections never consume throttle")
         for (width,height,expectedWidth,expectedHeight) in [(5120,2880,480,270),(4000,3000,360,270),(1080,1920,152,270),
                                                          (320,200,320,200),(1001,777,348,270),(1,16384,1,270),(16384,1,480,1)] {
@@ -95,6 +104,7 @@ struct ScreenPreviewTests {
             expect(finished == .success,"concurrent sampling completes without deadlock")
         }
         expect(count.value==1,"concurrent calls share one throttle decision")
+        expect(shared.hasSample,"concurrent sampling publishes availability under the same lock")
         shared.reset()
         expect(sample(shared,sharedBytes,width:16,height:12,stride:68,now:42) != nil,"reset after concurrent use")
         print("PASS: \(checks) screen-preview checks; owned pixels, aspect, opacity, bounds, throttle and concurrent sampling")

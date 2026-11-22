@@ -38,13 +38,13 @@ class Handler(BaseHTTPRequestHandler):
             self.connection.shutdown(socket.SHUT_RDWR)
             self.connection.close()
             return
-        name = {'/one': 'One', '/two': 'Two', '/popup': 'Popup', '/recover': 'Recovered'}.get(path, 'Ready')
+        name = {'/one': 'One', '/two': 'Two', '/popup': 'Popup', '/popup-message': 'Message', '/recover': 'Recovered'}.get(path, 'Ready')
         html = '''<!doctype html><meta charset="utf-8"><title>Fixture %s</title>
 <style>body{margin:0;background:#164e57;color:white;font:16px system-ui}input,button,select,a{margin:8px;font:16px system-ui}#tick{position:fixed;bottom:8px}</style>
 <input id="input" aria-label="Synthetic input"><button id="echo" onclick="document.getElementById('output').textContent=document.getElementById('input').value">Echo</button>
 <select id="choice" onchange="window.choice=this.value"><option value="one">One</option><option value="two">Two</option></select>
-<a id="popup" href="/popup" target="_blank">New card</a><output id="output"></output><span id="tick"></span>
-<script>window.cardToken=String(Math.random());window.tick=0;window.choice='one';document.cookie='lanternFixture=shared; SameSite=Lax; path=/';setInterval(()=>{window.tick++;document.getElementById('tick').textContent=window.tick;if(new URLSearchParams(location.search).has('animate'))document.body.style.backgroundColor=window.tick%%20<10?'#164e57':'#ee3344'},100)</script>''' % name
+<a id="popup" href="/popup" target="_blank">New tab</a><button id="openerPopup" onclick="window.fixtureChild=window.open('/popup-message','fixture-child')">Message popup</button><output id="output"></output><span id="tick"></span>
+<script>window.cardToken=String(Math.random());window.tick=0;window.choice='one';window.popupMessages=[];addEventListener('message',event=>{if(event.origin===location.origin)window.popupMessages.push(event.data)});if(location.pathname==='/popup-message'&&window.opener)window.opener.postMessage('owned-popup-ready',location.origin);document.cookie='lanternFixture=shared; SameSite=Lax; path=/';setInterval(()=>{window.tick++;document.getElementById('tick').textContent=window.tick;if(new URLSearchParams(location.search).has('animate'))document.body.style.backgroundColor=window.tick%%20<10?'#164e57':'#ee3344'},100)</script>''' % name
         body = html.encode()
         self.send_response(200)
         self.send_header('Content-Type', 'text/html; charset=utf-8')

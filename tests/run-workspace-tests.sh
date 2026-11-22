@@ -5,6 +5,7 @@ PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 TEST_DIR="$PROJECT_DIR/../work/workspace-tests"
 APP_DIR="$TEST_DIR/fixtures.noindex/WorkspaceHarness.app"
 mkdir -p "$TEST_DIR/module-cache" "$APP_DIR/Contents/MacOS"
+rm -f "$TEST_DIR/workspace-report.json"
 xcrun swiftc -O -D APP_UI_HARNESS -D BROWSER_HARNESS -D LANTERN_TESTING \
   -swift-version 5 -target arm64-apple-macosx13.0 -module-cache-path "$TEST_DIR/module-cache" \
   -import-objc-header "$PROJECT_DIR/native/VNCBridge.h" \
@@ -22,6 +23,10 @@ info.update(CFBundleExecutable='WorkspaceHarness', CFBundleIdentifier='local.lan
 (app / 'Contents/Info.plist').write_bytes(plistlib.dumps(info))
 PY
 codesign --force --sign - --identifier local.lantern.workspace-tests "$APP_DIR"
+if [[ "${WORKSPACE_BUILD_ONLY:-0}" == 1 ]]; then
+    echo "COMPILED: owned workspace harness; integration not run."
+    exit 0
+fi
 python3 - "$PROJECT_DIR" "$TEST_DIR" "$APP_DIR/Contents/MacOS/WorkspaceHarness" <<'PY'
 import json
 from pathlib import Path

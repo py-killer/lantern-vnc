@@ -1,50 +1,50 @@
 {
-  "scope": "owned localhost fixtures; instrumented native bridge and LibVNCClient; JPEG dependency Release SIMD; not Wi-Fi or end-to-end measurements",
+  "scope": "owned localhost fixtures; bridge and LibVNCClient ASan; Release SIMD JPEG; 2-second accelerated integration cadence plus deterministic10-second deadline checks; no Wi-Fi/end-to-end claim",
   "scenarios": [
     {
-      "frames": 10,
-      "requests": 11,
+      "frames": 7,
+      "requests": 8,
       "scenario": "pacing-active",
-      "stopMilliseconds": 0.169
+      "stopMilliseconds": 0.147
     },
     {
       "frames": 2,
-      "requestIntervalMilliseconds": 2034.0099999448285,
+      "requestIntervalMilliseconds": 2027.8959999559447,
       "requests": 2,
       "scenario": "pacing-background",
-      "stopMilliseconds": 0.201
+      "stopMilliseconds": 0.217
     },
     {
       "frames": 5,
-      "promotionFullRequestMilliseconds": 22.227999987080693,
-      "requests": 7,
+      "promotionFullRequestMilliseconds": 0.1509999856352806,
+      "requests": 6,
       "scenario": "pacing-promote",
-      "stopMilliseconds": 0.19
+      "stopMilliseconds": 0.168
     },
     {
       "frames": 1,
       "requests": 1,
       "scenario": "pacing-cancel",
-      "stopMilliseconds": 0.123
+      "stopMilliseconds": 0.229
     },
     {
       "frames": 1,
-      "inputDeliveredMilliseconds": 0.2749999985098839,
+      "inputDeliveredMilliseconds": 0.27899991255253553,
       "requests": 1,
       "scenario": "pacing-input",
-      "stopMilliseconds": 0.143
+      "stopMilliseconds": 0.323
     },
     {
-      "frames": 11,
-      "requests": 12,
+      "frames": 8,
+      "requests": 9,
       "scenario": "pacing-reset",
-      "stopMilliseconds": 0.134
+      "stopMilliseconds": 0.145
     },
     {
-      "frames": 11,
-      "requests": 12,
+      "frames": 8,
+      "requests": 9,
       "scenario": "pacing-isolation",
-      "stopMilliseconds": 0.299
+      "stopMilliseconds": 0.117
     }
   ]
 }

@@ -1,6 +1,6 @@
 # Lantern VNC — free VNC client for Mac
 
-**Current preview: 1.2.0-preview.1 · build 11 · Apple Silicon · macOS 13+**
+**Current preview: 1.2.0-preview.1 · build 13 · Apple Silicon · macOS 13+**
 
 A free native VNC client for Apple Silicon Macs, built with AppKit and Metal.
 Use it for an occasional remote task or regular direct access to your existing VNC server.
@@ -69,11 +69,17 @@ Use a manual address for those setups or when no result appears.
 The sidebar shows named cards for up to three saved VNC computers. Select a
 card to control that computer; **Connection settings** reveals its host, port,
 and connection options. Connected computers keep small, aspect-correct previews
-in RAM, sampled about every two seconds. Background connections become read-only
-and request updates at roughly two-second intervals. Selecting a connected card
+in RAM. Background connections become read-only, with preview requests and
+samples about every ten seconds. The selected screen gets an initial thumbnail,
+then repeated thumbnail work pauses while its main view continues at normal
+speed. Selecting a connected card
 resumes its existing session; only the selected computer receives remote input
 or optional clipboard sharing. Context-click a card to rename, disconnect, or
 remove it. Previews are not saved to disk.
+
+Live and connecting cards keep their saved order. Selecting a card does not
+move it. Offline, sleeping, or closing screens move to the bottom; when they
+become live again, their original position among live cards is restored.
 
 New server addresses/ports start in **Fit to Window**, showing the whole
 desktop. If text is too small, choose **Auto (Readable)** or a larger zoom,
@@ -177,20 +183,33 @@ the app does not use plaintext fallback storage or reset Keychain security.
 saved by an earlier build. Reliable remembering across app updates has not
 been verified, and this preview does not claim that issue is fixed.
 
-## Add local browser screens
+## Add tabbed browser windows
 
-Choose **Add screen → Website…** and enter an HTTP or HTTPS address. The page
-opens inside Lantern using native WebKit; it is local browsing on your Mac,
-not a page opened on the remote VNC computer. Website sessions persist in
+Choose **Add screen → Browser window…** to create a browser-window card, with an
+optional starting HTTP(S) address and name. An unnamed window gets a name such
+as **Browser 1**. Each card contains its own tab strip: use **+** or
+**Command–T** to add a tab, the tab's close button or **Command–W** to close it,
+and select tabs without changing sidebar cards. Closing the last page leaves
+a fresh new tab. Popup links open tabs inside that same browser window.
+
+Pages open inside Lantern using native WebKit; this is local browsing on your
+Mac, not a page opened on the remote VNC computer. Website sessions persist in
 Lantern's own WebKit data store, separate from Safari and Chrome. A website may
 still require its own sign-in; no Lantern account is required.
 
-Use Back, Forward, Reload, or **Command–L / R / [ / ]** in the selected browser
-screen. Context-click its card to edit the name/address or remove it. Browser
-cards have sampled previews while loaded. Up to 100 addresses can be saved;
-at most six pages stay loaded. The least recently used page sleeps when that
-limit is reached and reloads when selected again, so unsaved page state may be
-lost. Browser selection keeps existing VNC sessions connected without sending
+Use Back, Forward, Reload, or **Command–L / R / [ / ]** in the selected tab.
+Use **Command–Shift–[ / ]** or **Control–Tab / Control–Shift–Tab** to switch
+tabs. These browser shortcuts apply only while that browser window is selected.
+Context-click a browser card to edit its window name/selected address or remove
+the window. Each window can keep up to 12 tabs; up to 100 browser-window cards
+can be recorded. Tab URLs, titles, and the selected tab are restored; existing
+single-address cards migrate into one-tab windows without changing their alias.
+At most six browser windows stay loaded. The least recently used inactive
+window sleeps when that limit is reached and reloads its saved tabs on demand
+when selected again, so unsaved forms and page state may be lost. Tabs load
+lazily when first selected. Background card previews refresh about every ten
+seconds; the selected page runs normally without repeated thumbnail work.
+Browser selection keeps existing VNC sessions connected without sending
 them keyboard or pointer input.
 
 This is a focused embedded browser: downloads are unsupported and reported

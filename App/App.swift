@@ -26,6 +26,8 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     private var lastObservedZoom: DesktopZoomMode = .fit
     private let devices: DeviceStore
     private let passwordStore: PasswordStorage
+    private let previewInterval: TimeInterval
+    private var previewIntervalMilliseconds: UInt32 { UInt32((previewInterval*1000).rounded()) }
     private let browserStore: BrowserScreenStore
     private var computers: [String: WorkspaceComputer] = [:]
     private var computerImages: [String: NSImage] = [:]
@@ -105,12 +107,13 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     var isHandActive: Bool { desktop.panMode }
     var canMoveView: Bool { connected && desktop.canPan }
 
-    init(viewer: Void = (), showWindow: Bool = true, preferences: UserDefaults = .standard, passwordStore: PasswordStorage = PasswordStore()) throws {
+    init(viewer: Void = (), showWindow: Bool = true, preferences: UserDefaults = .standard, passwordStore: PasswordStorage = PasswordStore(), previewInterval: TimeInterval = 10) throws {
         defaults=preferences
         remembersWindowFrame=showWindow
         connectionPreferences=ConnectionPreferencesStore(defaults:preferences)
         devices=DeviceStore(defaults:preferences)
         self.passwordStore=passwordStore
+        self.previewInterval=previewInterval.isFinite ? max(2,min(60,previewInterval)) : 10
         browserStore=BrowserScreenStore(defaults:preferences)
         desktop = try MetalDesktop(renderer: ())
         guard desktop.device != nil else { throw NSError(domain: "LanternVNC", code: 1, userInfo: [NSLocalizedDescriptionKey: "This Mac could not create a Metal device."]) }
@@ -211,7 +214,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         let help = NSTextField(wrappingLabelWithString: "No account or subscription needed. Passwords are never stored in device profiles.")
         help.font = .systemFont(ofSize:12); help.textColor = .secondaryLabelColor
         let bottom = label("Apple Silicon  ·  Open source",size:11,color:.secondaryLabelColor)
-        addScreen.addItems(withTitles:["Add screen", "Computer…", "Website…"])
+        addScreen.addItems(withTitles:["Add screen", "Computer…", "Browser window…"])
         addScreen.identifier=NSUserInterfaceItemIdentifier("addScreenButton")
         addScreen.bezelStyle = .rounded;addScreen.font = .systemFont(ofSize:13,weight:.medium)
         cards.orientation = .vertical;cards.alignment = .leading;cards.spacing=12
@@ -585,7 +588,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
             if activate { promoteComputer(existing) }
             return
         }
-        let computer=WorkspaceComputer(host:address,port:number,name:devices.find(host:address,port:number)?.name ?? address)
+        let computer=WorkspaceComputer(host:address,port:number,name:devices.find(host:address,port:number)?.name ?? address,previewInterval:previewInterval)
         let next=computer.session
         computers[key]=computer;computerMessages[key]=nil
         var passwordToRemember:String?=remember ? value : nil
@@ -616,15 +619,16 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
             }
             passwordToRemember=nil
             if self.isSelected(computer) { self.showConnectedComputer(computer) }
-            else { _=computer.session.setUpdateInterval(milliseconds:2000);computer.session.viewOnly(true) }
+            else { _=computer.session.setUpdateInterval(milliseconds:self.previewIntervalMilliseconds);computer.session.viewOnly(true) }
             self.refreshDevicePicker();self.refreshScreenCards()
         }
         next.onFrame={ [weak self,weak computer] bytes,width,height,stride,dirty in
             guard let self=self,let computer=computer else { return }
-            self.frameRouter.receive(token:computer.token,bytes:bytes,width:width,height:height,stride:stride,dirty:dirty)
-            if let preview=computer.sampler.sample(bytes,width:width,height:height,stride:stride) {
+            let selected=self.frameRouter.receive(token:computer.token,bytes:bytes,width:width,height:height,stride:stride,dirty:dirty)
+            if (!selected || !computer.sampler.hasSample),let preview=computer.sampler.sample(bytes,width:width,height:height,stride:stride) {
                 DispatchQueue.main.async { [weak self,weak computer] in
                     guard let self=self,let computer=computer,self.computers[key] === computer else { return }
+                    if self.isSelected(computer),self.computerImages[key] != nil { return }
                     let image=NSImage(cgImage:preview.cgImage,size:NSSize(width:preview.width,height:preview.height))
                     self.computerImages[key]=image;self.computerSampleTimes[key]=preview.sampledAt
                     self.refreshScreenCards()
@@ -671,7 +675,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
                 status.stringValue="Connection failed";placeholderTitle.stringValue="Couldn’t connect."
                 placeholderDetail.stringValue="Could not start the connection worker. Try connecting again."
             }
-        } else { _=next.setUpdateInterval(milliseconds:activate ? 0 : 2000) }
+        } else { _=next.setUpdateInterval(milliseconds:activate ? 0 : previewIntervalMilliseconds) }
         refreshScreenCards()
     }
 
@@ -691,7 +695,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     private func demoteCurrentComputer() {
         desktop.releaseKeys();persistConnectionPreferences()
         if let current=session {
-            current.viewOnly(true);_=current.setUpdateInterval(milliseconds:2000)
+            current.viewOnly(true);_=current.setUpdateInterval(milliseconds:previewIntervalMilliseconds)
             if let key=endpointIdentity,let computer=computers[key],devices.find(host:computer.host,port:computer.port) == nil {
                 computer.phase = .closing;current.stop()
             }
@@ -833,11 +837,10 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
 
     private func refreshScreenCards() {
         updateWorkspaceMenu()
-        let wanted=devices.devices.map{"computer:"+$0.id}+browserStore.screens.map{"browser:"+$0.id}
         let keepComputers=Set(devices.devices.map{$0.id}),keepBrowsers=Set(browserStore.screens.map{$0.id})
         computerCards=computerCards.filter{keepComputers.contains($0.key)}
         browserCards=browserCards.filter{keepBrowsers.contains($0.key)}
-        var ordered:[NSView]=[]
+        var ordered:[ScreenCardView]=[]
         for device in devices.devices {
             let key=WorkspaceComputer.key(host:device.host,port:device.port)
             let card:ScreenCardView
@@ -855,7 +858,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
                 switch computer.phase {
                 case .connecting: text="Connecting…"
                 case .closing: text="Disconnecting…"
-                case .connected: text="Connected · "+previewAge(computerSampleTimes[key])
+                case .connected: text=isSelected(computer) ? "Viewing · preview paused" : "Connected · "+previewAge(computerSampleTimes[key])
                 }
             } else {
                 text=(computerMessages[key] ?? "Not connected")+(computerImages[key] == nil ? "" : " · last capture")
@@ -874,15 +877,35 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
                 browserCards[screen.id]=card
             }
             let text:String
-            if let pane=browserPanes[screen.id] { text=pane.hasError ? "Page unavailable" : "Local browser · "+previewAge(browserSampleTimes[screen.id]) }
+            if let pane=browserPanes[screen.id] { text=pane.hasError ? "Page unavailable" : "\(screen.tabs.count) \(screen.tabs.count == 1 ? "tab" : "tabs") · "+(selectedBrowserID == screen.id ? "preview paused" : previewAge(browserSampleTimes[screen.id])) }
             else { text="Sleeping · select to resume" }
             card.update(title:screen.title,status:text,image:browserImages[screen.id],selected:selectedBrowserID == screen.id)
             ordered.append(card)
         }
+        ordered=ordered.enumerated().sorted { left,right in
+            let a=screenRank(left.element),b=screenRank(right.element)
+            return a == b ? left.offset < right.offset : a < b
+        }.map{$0.element}
+        let wanted=ordered.map{$0.screenIdentifier}
         if wanted != cardOrder {
-            cardOrder=wanted;cards.setViews(ordered,in:.center)
+            cardOrder=wanted;cards.setViews(ordered.map{$0 as NSView},in:.center)
             for view in ordered { view.widthAnchor.constraint(equalTo:cards.widthAnchor).isActive=true }
         }
+    }
+
+    private func screenRank(_ card:ScreenCardView) -> Int {
+        if card.kind == .computer {
+            let id=String(card.screenIdentifier.dropFirst("computer:".count))
+            guard let device=devices.devices.first(where:{$0.id == id}),
+                  let computer=computers[WorkspaceComputer.key(host:device.host,port:device.port)] else { return 3 }
+            switch computer.phase {
+            case .connected, .connecting: return 1
+            case .closing: return 3
+            }
+        }
+        let id=String(card.screenIdentifier.dropFirst("browser:".count))
+        guard let pane=browserPanes[id],!pane.hasError else { return 3 }
+        return 1
     }
 
     private func updateWorkspaceMenu() {
@@ -919,22 +942,25 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     private func presentWebsiteEditor(id:String?=nil) {
         guard let window=window,window.attachedSheet == nil else { return }
         let current=id.flatMap{identifier in browserStore.screens.first{$0.id == identifier}}
-        let alert=NSAlert();alert.messageText=current == nil ? "Add a website" : "Edit website"
-        alert.informativeText="Open a website inside Lantern. Browser data stays separate from Safari and Chrome."
-        let address=NSTextField(string:current?.url ?? "");address.placeholderString="https://example.com or a local address"
-        let name=NSTextField(string:current?.title ?? "");name.placeholderString="Name (optional)"
+        let alert=NSAlert();alert.messageText=current == nil ? "Add a browser window" : "Edit browser window"
+        alert.informativeText="Each browser window can keep multiple tabs. Its website data stays separate from Safari and Chrome."
+        let address=NSTextField(string:current?.url ?? "");address.placeholderString="Starting URL (optional)"
+        let name=NSTextField(string:current?.title ?? "");name.placeholderString="Browser name (optional)"
         let fields=NSStackView(views:[address,name]);fields.orientation = .vertical;fields.spacing=10
         fields.frame=NSRect(x:0,y:0,width:360,height:72)
         for field in [address,name] { field.widthAnchor.constraint(equalToConstant:360).isActive=true;field.heightAnchor.constraint(equalToConstant:30).isActive=true }
-        alert.accessoryView=fields;alert.addButton(withTitle:current == nil ? "Add Website" : "Save");alert.addButton(withTitle:"Cancel")
+        alert.accessoryView=fields;alert.addButton(withTitle:current == nil ? "Add Browser" : "Save");alert.addButton(withTitle:"Cancel")
         alert.beginSheetModal(for:window) { [weak self] response in
             guard let self=self,response == .alertFirstButtonReturn else { return }
             do {
                 let screen:BrowserScreen
                 if let current=current {
-                    guard let edited=try self.browserStore.update(id:current.id,title:name.stringValue,url:address.stringValue) else { return }
+                    guard let edited=try self.browserStore.update(id:current.id,title:name.stringValue,url:address.stringValue.isEmpty && current.url.isEmpty ? nil : address.stringValue) else { return }
                     screen=edited
-                    if let url=URL(string:screen.url) { self.browserPanes[screen.id]?.load(url) }
+                    if screen.url != current.url,!screen.url.isEmpty,let url=URL(string:screen.url) { self.browserPanes[screen.id]?.load(url) }
+                } else if address.stringValue.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty {
+                    let tab=BrowserTab(id:UUID().uuidString,title:"New tab",url:"")
+                    screen=try self.browserStore.add(title:name.stringValue,tabs:[tab],selectedTabID:tab.id)
                 } else { screen=try self.browserStore.add(title:name.stringValue,url:address.stringValue) }
                 self.selectBrowser(id:screen.id)
             } catch { DispatchQueue.main.async { self.showError(error.localizedDescription) } }
@@ -953,24 +979,15 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         pane.translatesAutoresizingMaskIntoConstraints=false;webHost.addSubview(pane)
         NSLayoutConstraint.activate([pane.leadingAnchor.constraint(equalTo:webHost.leadingAnchor),pane.trailingAnchor.constraint(equalTo:webHost.trailingAnchor),pane.topAnchor.constraint(equalTo:webHost.topAnchor),pane.bottomAnchor.constraint(equalTo:webHost.bottomAnchor)])
         pane.isHidden=true;pane.setActive(false);pane.setSidebarVisible(!sidebarHidden)
-        pane.onNavigation={ [weak self,weak pane] url,_ in
+        pane.onNavigation={ [weak self,weak pane] _,_ in
             guard let self=self,let pane=pane,self.browserPanes[screen.id] === pane else { return }
-            if self.browserStore.screens.first(where:{$0.id == screen.id})?.url != url.absoluteString {
-                _=try? self.browserStore.update(id:screen.id,url:url.absoluteString)
-            }
             self.refreshScreenCards()
         }
-        pane.onOpenURL={ [weak self,weak pane] url in
+        pane.onTabsChanged={ [weak self,weak pane] tabs,selectedID in
             guard let self=self,let pane=pane,self.browserPanes[screen.id] === pane else { return }
-            do {
-                let card=try self.browserStore.add(title:"",url:url.absoluteString)
-                if self.selectedBrowserID == screen.id { self.selectBrowser(id:card.id) }
-                else {
-                    if self.browserPanes.count < self.maximumLoadedBrowsers { _=self.makeBrowserPane(card) }
-                    self.refreshScreenCards()
-                }
-            }
+            do { _=try self.browserStore.updateTabs(id:screen.id,tabs:tabs,selectedTabID:selectedID) }
             catch { self.showWorkspaceNotice(error.localizedDescription) }
+            self.refreshScreenCards()
         }
         pane.onToggleSidebar={ [weak self] in self?.toggleSidebar() }
         pane.onFullScreen={ [weak self] in self?.fullScreen() }
@@ -991,9 +1008,8 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         pane.setSidebarVisible(!sidebarHidden);pane.focus()
         settingsGroup.isHidden=true;settingsDisclosure.state = .off
         window?.subtitle="Local browser · \(screen.title)"
-        refreshScreenCards();takeBrowserPreviews()
+        refreshScreenCards();window?.contentView?.layoutSubtreeIfNeeded();takeBrowserPreviews()
         if !sidebarHidden {
-            window?.contentView?.layoutSubtreeIfNeeded()
             if let card=browserCards[id] { _=card.scrollToVisible(card.bounds) }
         }
     }
@@ -1014,12 +1030,16 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         guard !sidebarHidden else { return }
         let now=ProcessInfo.processInfo.systemUptime
         for (id,pane) in browserPanes {
-            guard browserSnapshotInFlight[id] == nil,now-browserAttemptTimes[id,default:0] >= 2 else { continue }
+            if id == selectedBrowserID {
+                if browserImages[id] != nil || pane.webView.isLoading { continue }
+            }
+            guard browserSnapshotInFlight[id] == nil,now-browserAttemptTimes[id,default:0] >= previewInterval else { continue }
             browserAttemptTimes[id]=now
             let token=UUID();browserSnapshotInFlight[id]=token
             pane.takePreview { [weak self,weak pane] image in
                 guard let self=self,let pane=pane,self.browserPanes[id] === pane,self.browserSnapshotInFlight[id] == token else { return }
                 self.browserSnapshotInFlight.removeValue(forKey:id)
+                if id == self.selectedBrowserID,self.browserImages[id] != nil { return }
                 if let image=image {
                     self.browserImages[id]=image
                     self.browserSampleTimes[id]=pane.lastPreviewSampleTime
@@ -1179,6 +1199,8 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
         latency.stringValue=snapshot.title;latency.toolTip=snapshot.toolTip;latency.isHidden = !visible
     }
 #if APP_UI_HARNESS
+    var testingScreenOrder:[String] { cardOrder }
+    var testingPreviewInterval:TimeInterval { previewInterval }
     var testingComputerPreviewCount:Int { computerImages.count }
     var testingBrowserPreviewCount:Int { browserImages.count }
     var testingComputerCount:Int { computers.count }
@@ -1192,7 +1214,7 @@ final class ViewerController: NSWindowController, NSWindowDelegate, NSTextFieldD
     }
     func testingEditBrowser(id:String,title:String,url:String)throws {
         guard let screen=try browserStore.update(id:id,title:title,url:url) else { return }
-        if let address=URL(string:screen.url) { browserPanes[id]?.load(address) }
+        if !screen.url.isEmpty,let address=URL(string:screen.url) { browserPanes[id]?.load(address) }
         refreshScreenCards()
     }
     func testingAddBrowser(title:String,url:String)throws->String {

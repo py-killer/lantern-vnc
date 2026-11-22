@@ -49,7 +49,7 @@ final class ScreenCardView: NSControl {
         previewBackground.layer?.masksToBounds = true
         placeholder.font = .systemFont(ofSize:11)
         placeholder.textColor = NSColor(calibratedWhite:0.68,alpha:1)
-        if kind == .browser { placeholder.stringValue = "Saved web page" }
+        if kind == .browser { placeholder.stringValue = "Browser preview" }
         for child in [preview,placeholder] { child.translatesAutoresizingMaskIntoConstraints=false; previewBackground.addSubview(child) }
         NSLayoutConstraint.activate([
             preview.leadingAnchor.constraint(equalTo:previewBackground.leadingAnchor),preview.trailingAnchor.constraint(equalTo:previewBackground.trailingAnchor),
@@ -88,11 +88,13 @@ final class ScreenCardView: NSControl {
     }
     func update(title: String, status: String, image: NSImage?, selected: Bool) {
         precondition(Thread.isMainThread,"Screen cards must be updated on the main thread")
+        guard titleLabel.stringValue != title || statusLabel.stringValue != status ||
+              preview.image !== image || isSelected != selected else { return }
         titleLabel.stringValue = title; titleLabel.toolTip = title
         statusLabel.stringValue = status; statusLabel.toolTip = status
         preview.image = image; placeholder.isHidden = image != nil
         isSelected = selected
-        setAccessibilityLabel(title + (kind == .computer ? ", computer" : ", web page"))
+        setAccessibilityLabel(title + (kind == .computer ? ", computer" : ", browser window"))
         setAccessibilityValue((selected ? "Selected. " : "") + status)
         setAccessibilityHelp("Select this screen. Control-click for available actions.")
         needsDisplay = true
@@ -153,11 +155,12 @@ final class ScreenPreviewSampler {
     private let minimumInterval: TimeInterval
     private var lastSample: TimeInterval?
 
-    init(maxWidth: Int=480,maxHeight: Int=270,minimumInterval: TimeInterval=2) {
+    init(maxWidth: Int=480,maxHeight: Int=270,minimumInterval: TimeInterval=10) {
         self.maxWidth=max(1,min(480,maxWidth));self.maxHeight=max(1,min(270,maxHeight))
         self.minimumInterval=minimumInterval.isFinite ? max(2,minimumInterval) : 2
     }
     func reset() { lock.lock();lastSample=nil;lock.unlock() }
+    var hasSample: Bool { lock.lock();defer { lock.unlock() };return lastSample != nil }
 
     func sample(_ bytes: UnsafePointer<UInt8>,width: Int,height: Int,stride: Int,
                 force: Bool=false,now: TimeInterval=ProcessInfo.processInfo.systemUptime) -> ScreenPreview? {

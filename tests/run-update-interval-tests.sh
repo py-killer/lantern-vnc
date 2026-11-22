@@ -41,8 +41,18 @@ for scenario in ('pacing-active', 'pacing-background', 'pacing-promote', 'pacing
             if server.poll() is not None: raise RuntimeError('Mock exited')
             time.sleep(.02)
         port = json.loads(info.read_text())['port']
-        process = subprocess.run([work / 'test_update_interval', str(port), scenario],
-                                 check=True, capture_output=True, text=True, timeout=15)
+        try:
+            process = subprocess.run([work / 'test_update_interval', str(port), scenario],
+                                     check=True, capture_output=True, text=True, timeout=25)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as failure:
+            print('FAIL: native fixture ' + scenario, file=sys.stderr)
+            for name, value in (('stdout', failure.stdout), ('stderr', failure.stderr)):
+                if value:
+                    if isinstance(value, bytes): value = value.decode('utf8', errors='replace')
+                    print(name + ':\n' + value, file=sys.stderr)
+            if events.exists():
+                print('Owned protocol events:\n' + '\n'.join(events.read_text().splitlines()[-30:]), file=sys.stderr)
+            raise
         report = json.loads(process.stdout)
         time.sleep(.05)
         records = [json.loads(line) for line in events.read_text().splitlines()]

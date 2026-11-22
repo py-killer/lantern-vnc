@@ -140,7 +140,14 @@ struct WorkspaceHarness {
         expect(connectionPreferences.save(host:"127.0.0.1",port:portB,zoomMode:.scale(1),qualityIndex:3),"fixture B has independent Wi-Fi/100-percent settings")
         let credentials=WorkspaceCredentials();credentials.values=[portA:"owned-fixture",portB:"owned-fixture"]
         let productionBefore=UserDefaults.standard.persistentDomain(forName:"local.lantern.vnc")
-        let controller=try ViewerController(showWindow:false,preferences:preferences,passwordStore:credentials)
+        do {
+            let defaultsController=try ViewerController(showWindow:false,preferences:preferences,passwordStore:credentials)
+            expect(defaultsController.testingPreviewInterval == 10,"production workspace preview cadence defaults to ten seconds")
+            expect(defaultsController.testingComputerCount == 0,"checking default cadence opens no VNC connection")
+            defaultsController.stop();defaultsController.window?.delegate=nil;defaultsController.window?.close()
+        }
+        let controller=try ViewerController(showWindow:false,preferences:preferences,passwordStore:credentials,previewInterval:2)
+        expect(controller.testingPreviewInterval == 2,"explicit faster fixture cadence keeps integration checks bounded")
         let previousMenu=NSApp.mainMenu
         let menuOwner=AppDelegate();menuOwner.testingInstallMenu(controller:controller)
         controller.testingWorkspaceTick()
@@ -167,6 +174,8 @@ struct WorkspaceHarness {
         wait("two owned VNC sessions connect and selected desktop receives frames") { controller.testingComputerCount == 2 && controller.testingComputerPreviewCount == 2 && connect.title == "Disconnect" && desktop.framesReceived > 0 }
         let sessionA=controller.testingComputerSession(id:first.id)!,sessionB=controller.testingComputerSession(id:second.id)!
         expect(controller.testingCurrentSession === sessionA,"current endpoint is selected without creating a separate foreground session")
+        let originalComputerOrder=["computer:"+first.id,"computer:"+second.id,"computer:"+third.id]
+        expect(controller.testingScreenOrder == originalComputerOrder,"live computers keep original order and the offline saved computer is last")
         expect(quality.indexOfSelectedItem == 1 && zoom.indexOfSelectedItem == 1,"selected endpoint retains lossless quality and Fit")
         expect(!desktop.canPan && !controller.canMoveView,"small fixture fits without a misleading enabled pan control")
         key("a",code:0,desktop:desktop,window:window)
@@ -178,21 +187,51 @@ struct WorkspaceHarness {
         viewOnly.state = .on;expect(viewOnly.sendAction(viewOnly.action,to:viewOnly.target),"view-only option is wired")
         key("v",code:9,desktop:desktop,window:window);settle(0.15)
         expect(count(logA,event:"key",key:118) == 0,"view-only blocks remote keyboard input")
+        let selectedThumbnail=image(first.id,kind:"computer",in:root)
+        let inactiveThumbnail=image(second.id,kind:"computer",in:root)
+        let selectedFrames=desktop.framesReceived
+        settle(2.15);controller.testingWorkspaceTick()
+        expect(selectedThumbnail != nil && image(first.id,kind:"computer",in:root) === selectedThumbnail,"selected computer card keeps its initial thumbnail instead of refreshing")
+        expect(desktop.framesReceived > selectedFrames,"freezing the selected thumbnail leaves the real desktop updating at full cadence")
+        wait("inactive computer thumbnail continues at the explicit fixture interval") { image(second.id,kind:"computer",in:root) !== inactiveThumbnail }
+        expect(controller.testingScreenOrder == originalComputerOrder,"active preview pause and inactive preview updates never reorder live computers")
+        controller.testingSelectComputer(id:third.id)
+        expect(controller.testingCurrentSession == nil && controller.testingScreenOrder.last == "computer:"+third.id,"even a selected offline computer stays below live screens")
+        expect(controller.testingComputerSession(id:first.id) === sessionA && controller.testingComputerSession(id:second.id) === sessionB,"selecting an offline profile retains both live computer workers")
+        controller.testingSelectComputer(id:first.id)
+        wait("returning from offline profile resumes the retained live computer") { controller.testingCurrentSession === sessionA && desktop.framesReceived > 0 }
 
         let browserA=try controller.testingAddBrowser(title:"Owned web A",url:base.appendingPathComponent("one").absoluteString)
         let paneA=controller.testingBrowserPane(id:browserA)!
         let browserB=try controller.testingAddBrowser(title:"Owned web B",url:base.appendingPathComponent("two").absoluteString)
         let paneB=controller.testingBrowserPane(id:browserB)!
         expect(!editMenu.isHidden && editMenu.submenu!.items.contains{$0.action == #selector(NSText.copy(_:)) && $0.keyEquivalent == "c"},"local browser mode restores standard Copy and other editing shortcuts")
+        let originalLiveOrder=["computer:"+first.id,"computer:"+second.id,"browser:"+browserA,"browser:"+browserB,"computer:"+third.id]
+        expect(controller.testingScreenOrder == originalLiveOrder,"selecting a browser preserves original relative order across all live screens with offline computers last")
         wait("both workspace browser pages load") { paneA.webView.title == "Fixture One" && paneB.webView.title == "Fixture Two" && !paneA.webView.isLoading && !paneB.webView.isLoading }
         expect(!paneA.webView.configuration.websiteDataStore.isPersistent,"hidden workspace uses an ephemeral browser store")
-        let beforePopup=Set(BrowserScreenStore(defaults:preferences).screens.map{$0.id})
-        paneA.onOpenURL?(base.appendingPathComponent("one"))
-        let newPopup=BrowserScreenStore(defaults:preferences).screens.first{!beforePopup.contains($0.id)}!
-        expect(controller.testingSelectedBrowserID == browserB && paneB.isActive,"a background-page popup cannot steal selected content or browser focus")
-        expect(BrowserScreenStore(defaults:preferences).screens.count == 3,"background popup is saved as a separate browser card")
-        controller.testingRemoveBrowser(id:newPopup.id)
-        expect(controller.testingSelectedBrowserID == browserB,"closing the background popup preserves the selected browser")
+        let originalTabA=paneA.selectedTabID,originalWebViewA=paneA.webView
+        let originalPageToken=js("window.workspaceTabMarker='original';window.cardToken",pane:paneA) as! String
+        // Component tests exercise WKUIDelegate/opener behavior. At workspace
+        // level, exercise its same-window background-tab admission path.
+        guard let popupTab=paneA.addTab(url:base.appendingPathComponent("two"),select:false) else { fatalError("Owned background tab was rejected") }
+        expect(controller.testingSelectedBrowserID == browserB && paneB.isActive && !paneA.isActive,"a background-page new tab cannot steal selected content or browser focus")
+        expect(paneA.tabs.count == 2 && paneA.selectedTabID == originalTabA && paneA.webView === originalWebViewA,"a background tab stays inside its existing window without replacing its selected page")
+        wait("coalesced tab notification persists the background window") { BrowserScreenStore(defaults:preferences).screens.first{$0.id == browserA}?.tabs.count == 2 }
+        let savedWindow=BrowserScreenStore(defaults:preferences).screens.first{$0.id == browserA}!
+        expect(BrowserScreenStore(defaults:preferences).screens.count == 2 && savedWindow.tabs.count == 2 && savedWindow.selectedTabID == originalTabA,"new-tab admission persists tabs without creating a third workspace card")
+        paneA.selectTab(id:popupTab)
+        wait("new tab loads its independent owned page") { paneA.webView.title == "Fixture Two" && !paneA.webView.isLoading }
+        _=js("window.workspaceTabMarker='new tab';true",pane:paneA)
+        expect(BrowserScreenStore(defaults:preferences).screens.first{$0.id == browserA}?.selectedTabID == popupTab,"tab selection persists within the correct browser window")
+        paneA.selectTab(id:originalTabA)
+        expect(paneA.webView === originalWebViewA && (js("window.cardToken",pane:paneA) as? String) == originalPageToken && (js("window.workspaceTabMarker",pane:paneA) as? String) == "original","tab switching preserves the original live WKWebView and page state")
+        paneA.selectTab(id:popupTab)
+        expect((js("window.workspaceTabMarker",pane:paneA) as? String) == "new tab","returning to the second tab preserves its independent page state")
+        paneA.closeTab(id:popupTab)
+        expect(paneA.tabs.count == 1 && paneA.selectedTabID == originalTabA && paneA.webView === originalWebViewA,"closing a tab returns to the surviving live tab")
+        expect(controller.testingSelectedBrowserID == browserB && BrowserScreenStore(defaults:preferences).screens.count == 2,"tab selection and closing never select a different workspace card")
+        wait("closing a tab persists only its own window's remaining tabs") { BrowserScreenStore(defaults:preferences).screens.first{$0.id == browserA}?.tabs.count == 1 }
         expect(controller.testingCurrentSession == nil && controller.testingComputerSession(id:first.id) === sessionA && controller.testingComputerSession(id:second.id) === sessionB,"browser changes selected routing while both original VNC sessions remain alive")
         expect(viewOnly.state == .on && quality.indexOfSelectedItem == 1,"browser selection leaves VNC view-only and quality choices intact")
         let frameCount=desktop.framesReceived
@@ -208,6 +247,9 @@ struct WorkspaceHarness {
         expect(count(logA,event:"key",key:120) == 0 && count(logB,event:"key",key:120) == 0,"owned key directed at hidden desktop is not routed to either VNC session")
         expect(count(logA,event:"pointer") == 2 && count(logB,event:"pointer") == 0,"browser routing gate also rejects unexpected hidden pointer callbacks")
         expect(count(logA,event:"pixel-format") == 1 && count(logB,event:"pixel-format") == 1,"browser selection opens no replacement VNC connection")
+        wait("selected browser gets one initial thumbnail") { image(browserB,kind:"browser",in:root) != nil }
+        let selectedBrowserThumbnail=image(browserB,kind:"browser",in:root)
+        let selectedBrowserSampleTime=controller.testingBrowserPreviewSampleTimes[browserB]
         let tokenA=js("window.cardToken",pane:paneA) as! String
         let tickA=(js("window.tick",pane:paneA) as! NSNumber).intValue
         _=js("document.body.style.backgroundColor='rgb(203,32,145)';true",pane:paneA)
@@ -218,20 +260,25 @@ struct WorkspaceHarness {
             guard let thumbnail=image(browserA,kind:"browser",in:root) else { return false }
             let c=color(thumbnail);return abs(c.redComponent-203.0/255)<0.08 && abs(c.blueComponent-145.0/255)<0.08
         }
+        expect(image(browserB,kind:"browser",in:root) === selectedBrowserThumbnail && controller.testingBrowserPreviewSampleTimes[browserB] == selectedBrowserSampleTime,"selected browser card keeps its initial thumbnail while inactive browser previews refresh")
+        expect(controller.testingScreenOrder == originalLiveOrder,"browser tab and preview updates do not move live cards")
         expect((js("window.tick",pane:paneA) as! NSNumber).intValue > tickA,"hidden browser remains live rather than becoming a static screenshot")
         controller.testingSelectComputer(id:first.id)
         wait("returning to A resumes its retained session") { controller.testingCurrentSession === sessionA && desktop.framesReceived > 0 }
+        expect(controller.testingScreenOrder == originalLiveOrder,"selecting live computer A does not change card order")
         expect(editMenu.isHidden && editMenu.submenu!.items.allSatisfy{$0.keyEquivalent.isEmpty},"returning to VNC removes local browser edit key equivalents")
         expect(viewOnly.state == .on && quality.indexOfSelectedItem == 1 && zoom.indexOfSelectedItem == 1,"returning to computer preserves view-only, lossless quality and Fit")
         viewOnly.state = .off;_=viewOnly.sendAction(viewOnly.action,to:viewOnly.target)
         controller.testingSelectComputer(id:second.id)
         wait("switching to B uses its retained connection") { controller.testingCurrentSession === sessionB && desktop.framesReceived > 0 }
+        expect(controller.testingScreenOrder == originalLiveOrder,"selecting live computer B does not promote its card above other live screens")
         expect(quality.indexOfSelectedItem == 3 && zoom.indexOfSelectedItem == 4,"second computer restores its independent Wi-Fi quality and 100-percent zoom")
         key("b",code:11,desktop:desktop,window:window)
         wait("second selected computer receives its owned key") { count(logB,event:"key",key:98) == 2 }
         expect(count(logA,event:"key",key:98) == 0,"switching input target never leaks B's key to A")
         controller.testingSelectComputer(id:first.id)
         controller.testingSelectBrowser(id:browserA)
+        expect(controller.testingScreenOrder == originalLiveOrder,"switching back to a live browser keeps the original live-card order")
         expect(controller.testingBrowserPane(id:browserA) === paneA && (js("window.cardToken",pane:paneA) as? String) == tokenA,"browser switch returns to same live page without reloading")
         try controller.testingEditBrowser(id:browserA,title:"Edited owned web",url:base.appendingPathComponent("two").absoluteString)
         wait("editing URL navigates the same retained browser pane") { paneA.currentURL?.path == "/two" && paneA.webView.title == "Fixture Two" && !paneA.webView.isLoading }
@@ -244,6 +291,8 @@ struct WorkspaceHarness {
         wait("Back returns to original owned page") { paneA.currentURL?.path == "/one" && !paneA.webView.isLoading }
         paneA.load(base.appendingPathComponent("recover"))
         wait("owned browser network failure stays inline") { paneA.hasError }
+        settle(0.1)
+        expect(paneA.currentURL?.path == "/recover","failed provisional navigation retains its intended retry target after queued WebKit callbacks")
         expect(window.attachedSheet == nil,"browser network failure never opens a modal authentication dialog")
         var armed=false
         URLSession.shared.dataTask(with:base.appendingPathComponent("arm")) { _,_,_ in DispatchQueue.main.async { armed=true } }.resume()
@@ -265,16 +314,24 @@ struct WorkspaceHarness {
 
         var resourceCards:[String]=[]
         var evictedPane:BrowserScreenPane?
+        var evictedSelectedTab:String?,evictedOriginalTab:String?
         for index in 0..<7 {
             let id=try controller.testingAddBrowser(title:"Owned resource card \(index)",url:base.absoluteString+"/one?workspaceCard=\(index)")
             resourceCards.append(id)
-            if index == 0 { evictedPane=controller.testingBrowserPane(id:id) }
+            if index == 0 {
+                evictedPane=controller.testingBrowserPane(id:id)
+                evictedOriginalTab=evictedPane!.selectedTabID
+                evictedSelectedTab=evictedPane!.addTab(url:URL(string:base.absoluteString+"/two?workspaceTab=0")!,select:true)
+                expect(evictedSelectedTab != nil && evictedPane!.tabs.count == 2,"resource fixture records two tabs in its first browser window")
+                wait("both tabs persist before testing resource eviction") { BrowserScreenStore(defaults:preferences).screens.first{$0.id == id}?.selectedTabID == evictedSelectedTab }
+            }
             expect(resourceCards.filter { controller.testingBrowserPane(id:$0) != nil }.count <= 6,
                    "loaded browser count stays bounded while adding resource card \(index)")
         }
         let oldest=resourceCards[0],secondOldest=resourceCards[1]
         expect(controller.testingBrowserPane(id:oldest) == nil && resourceCards.filter { controller.testingBrowserPane(id:$0) != nil }.count == 6,
                "seventh browser evicts the least recently used inactive pane")
+        expect(Array(controller.testingScreenOrder.suffix(2)) == ["computer:"+third.id,"browser:"+oldest],"offline and sleeping screens sort below live windows with stable creation order")
         expect(BrowserScreenStore(defaults:preferences).screens.count == 7 && DeviceStore(defaults:preferences).devices.count == 3,
                "sleeping browser records remain saved separately from the three-computer capacity")
         let stoppedRequests=evictedPane!.testingSnapshotRequests
@@ -285,11 +342,15 @@ struct WorkspaceHarness {
                "sleeping pane rejects new snapshots instead of restarting hidden work")
         controller.testingSelectBrowser(id:oldest)
         let resumed=controller.testingBrowserPane(id:oldest)!
-        wait("selecting a sleeping card reloads its recorded URL") { resumed.webView.title == "Fixture One" && !resumed.webView.isLoading }
-        expect(resumed !== evictedPane && resumed.currentURL?.query == "workspaceCard=0",
-               "sleep resume creates a fresh pane while retaining the saved address")
+        wait("selecting a sleeping card reloads its selected tab URL") { resumed.webView.title == "Fixture Two" && !resumed.webView.isLoading }
+        expect(resumed !== evictedPane && resumed.tabs.count == 2 && resumed.selectedTabID == evictedSelectedTab && resumed.currentURL?.query == "workspaceTab=0",
+               "sleep resume creates a fresh pane while retaining both tabs and their selected address")
+        resumed.selectTab(id:evictedOriginalTab!)
+        wait("sleep resume can restore the other saved tab independently") { resumed.webView.title == "Fixture One" && resumed.currentURL?.query == "workspaceCard=0" && !resumed.webView.isLoading }
         expect(controller.testingBrowserPane(id:secondOldest) == nil && resourceCards.filter { controller.testingBrowserPane(id:$0) != nil }.count == 6,
                "resuming an evicted page applies the same six-pane LRU bound")
+        let restoredLiveOrder=["computer:"+first.id,"computer:"+second.id] + ([oldest]+Array(resourceCards.dropFirst(2))).map{"browser:"+$0}
+        expect(controller.testingScreenOrder == restoredLiveOrder+["computer:"+third.id,"browser:"+secondOldest],"resumed window returns to its original relative live position while the newly sleeping window moves to the bottom")
         expect(controller.testingComputerSession(id:first.id) === sessionA && controller.testingComputerSession(id:second.id) === sessionB &&
                count(logA,event:"pixel-format") == 1 && count(logB,event:"pixel-format") == 1,
                "browser resource eviction never reconnects either VNC target")
@@ -313,8 +374,10 @@ struct WorkspaceHarness {
         expect(UserDefaults.standard.persistentDomain(forName:"local.lantern.vnc") as NSDictionary? == productionBefore as NSDictionary?,"production preferences remain untouched")
         expect(!window.isKeyWindow && window.attachedSheet == nil,"owned workspace finishes without user focus or an authorization sheet")
         let output:[String:Any] = ["checks":checks,"routerSelectionPairs":4000,"vncSessions":2,"vncReconnects":0,
-            "browserPages":9,"maximumLoadedBrowserPanes":6,"scope":"owned offscreen controller; loopback fixtures; isolated preferences and fake passwords; no user app or global input"]
+            "browserWindows":9,"testedTabbedWindows":2,"maximumLoadedBrowserPanes":6,
+            "productionPreviewIntervalSeconds":10,"fixturePreviewIntervalSeconds":2,
+            "scope":"owned offscreen controller; loopback fixtures; isolated preferences and fake passwords; no user app or global input"]
         try JSONSerialization.data(withJSONObject:output,options:[.prettyPrinted,.sortedKeys]).write(to:URL(fileURLWithPath:report))
-        print("PASS: \(checks) workspace integration checks, 4,000 concurrent router selection/frame pairs, two retained VNC sessions and six-pane browser LRU bounds")
+        print("PASS: \(checks) workspace integration checks, 4,000 router pairs, two retained VNC sessions, live browser tabs and six-window LRU bounds")
     }
 }
